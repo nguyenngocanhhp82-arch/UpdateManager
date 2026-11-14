@@ -141,10 +141,8 @@ public static class Program
             var whatsAppTask = wingetService.FastUpdateWhatsAppAsync().GetAwaiter().GetResult();
             AppendAutoUpgradeLog($"Kết quả cập nhật WhatsApp: ExitCode {whatsAppTask.ExitCode} (Thành công: {whatsAppTask.Succeeded})");
 
-            // 2. All Apps Upgrade
-            AppendAutoUpgradeLog("Đang cập nhật toàn bộ ứng dụng qua winget...");
-            var allTask = wingetService.UpgradeAllPackagesAsync().GetAwaiter().GetResult();
-            AppendAutoUpgradeLog($"Kết quả cập nhật ứng dụng: ExitCode {allTask.ExitCode} (Thành công: {allTask.Succeeded})");
+            // 2. Scheduled auto-upgrade is configured strictly for WhatsApp to prevent unwanted updates on other apps
+            AppendAutoUpgradeLog("Hoàn tất tác vụ theo lịch: Chỉ cập nhật WhatsApp, bảo vệ an toàn cho các ứng dụng hệ thống khác.");
 
             // 3. Guarantee wuauserv remains locked if it was locked initially
             if (wasWuauservDisabled)

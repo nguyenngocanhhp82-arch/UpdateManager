@@ -61,6 +61,8 @@ public partial class WingetService : IWingetService
 
         foreach (var p in packages)
         {
+            p.IsSelected = false; // Mặc định KHÔNG tự động tích chọn bất kỳ app nào (để người dùng chủ động tích chọn)
+
             if (pinnedIds.Contains(p.Id))
             {
                 p.IsPinned = true;
@@ -73,12 +75,7 @@ public partial class WingetService : IWingetService
             if (IsExcludedPackage(p.Id, p.Name))
             {
                 p.IsExcluded = true;
-                p.IsSelected = false; // Không tự động chọn ứng dụng nhạy cảm (Office, Zalo)
                 p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
-            }
-            else
-            {
-                p.IsSelected = true;
             }
         }
 
@@ -105,6 +102,8 @@ public partial class WingetService : IWingetService
 
         foreach (var p in packages)
         {
+            p.IsSelected = false; // Mặc định KHÔNG tự động tích chọn bất kỳ app nào (để người dùng chủ động tích chọn)
+
             if (pinnedIds.Contains(p.Id))
             {
                 p.IsPinned = true;
@@ -117,12 +116,7 @@ public partial class WingetService : IWingetService
             if (IsExcludedPackage(p.Id, p.Name))
             {
                 p.IsExcluded = true;
-                p.IsSelected = false; // Không tự động chọn ứng dụng nhạy cảm (Office, Zalo)
                 p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
-            }
-            else
-            {
-                p.IsSelected = true;
             }
         }
 

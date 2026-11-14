@@ -42,7 +42,6 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="🚀 Cập nhật mọi thứ" Style="{StaticResource SuccessButton}" Command="{Binding UpdateEverythingCommand}" Padding="14,6" Margin="0,0,12,0" ToolTip="Cập nhật nhanh WhatsApp + nâng cấp toàn bộ ứng dụng winget + kiểm tra cập nhật Windows" />
                     <Border Background="#EEF2FF" CornerRadius="12" Padding="10,4">
                         <TextBlock Text="Quyền: Quản trị viên (Admin)" FontSize="11" FontWeight="SemiBold" Foreground="#4F46E5" />
                     </Border>
@@ -130,9 +129,9 @@
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <Button Content="🔍 Quét bản mới" Style="{StaticResource SecondaryButton}" Command="{Binding ScanUpgradesCommand}" Margin="0,0,6,0" />
-                                    <Button Content="Cập nhật đã chọn" Command="{Binding UpgradeSelectedCommand}" Margin="0,0,6,0" />
-                                    <Button Content="Cập nhật tất cả" Command="{Binding UpgradeAllCommand}" Margin="0,0,6,0" />
-                                    <Button Content="Nhóm ưu tiên" Style="{StaticResource SecondaryButton}" Command="{Binding UpgradePriorityGroupCommand}" ToolTip="Chỉ cập nhật nhóm ứng dụng an toàn (WhatsApp, Chrome)" />
+                                    <Button Content="Chọn tất cả" Style="{StaticResource SecondaryButton}" Command="{Binding SelectAllUpgradesCommand}" Margin="0,0,6,0" ToolTip="Tích chọn các ứng dụng an toàn" />
+                                    <Button Content="Bỏ chọn hết" Style="{StaticResource SecondaryButton}" Command="{Binding DeselectAllUpgradesCommand}" Margin="0,0,10,0" ToolTip="Bỏ tích chọn toàn bộ ứng dụng" />
+                                    <Button Content="⚡ Cập nhật các app đã chọn" Command="{Binding UpgradeSelectedCommand}" Padding="14,6" ToolTip="Chỉ cập nhật ĐÚNG những ứng dụng bạn đã tích chọn dấu kiểm ở cột đầu tiên." />
                                 </StackPanel>
                             </Grid>
 
