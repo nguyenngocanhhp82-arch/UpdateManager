@@ -465,6 +465,18 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task UpgradeSingleAppAsync(WingetPackage package)
     {
         if (package == null || IsBusy) return;
+
+        if (package.IsExcluded)
+        {
+            bool proceed = ConfirmAction(
+                "Cảnh báo ứng dụng nhạy cảm",
+                $"Ứng dụng [{package.Name}] ({package.Id}) thuộc danh mục nhạy cảm (Office/Zalo).\n\n" +
+                "- Với Office: Cập nhật qua winget có thể làm hỏng bản quyền hoặc xung đột tệp Click-to-Run.\n" +
+                "- Với Zalo: Ứng dụng tự động cập nhật khi mở app, nâng cấp qua winget khi app đang chạy ngầm có thể gây crash.\n\n" +
+                "Bạn có chắc chắn muốn tiếp tục cập nhật ứng dụng này không?");
+            if (!proceed) return;
+        }
+
         IsBusy = true;
         StatusText = $"Đang cập nhật {package.Name}...";
 
@@ -495,6 +507,30 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _logService.LogWarning("Vui lòng chọn ít nhất một ứng dụng để cập nhật.");
             return;
+        }
+
+        var excludedSelected = selected.Where(p => p.IsExcluded).ToList();
+        if (excludedSelected.Count > 0)
+        {
+            string names = string.Join(", ", excludedSelected.Select(p => p.Name));
+            bool proceed = ConfirmAction(
+                "Cảnh báo ứng dụng nhạy cảm",
+                $"Trong danh sách bạn chọn có các ứng dụng nhạy cảm: {names}.\n\n" +
+                "Cập nhật các ứng dụng này qua winget có thể gây lỗi bản quyền (Office) hoặc crash (Zalo).\n\n" +
+                "Bạn có muốn BỎ QUA các ứng dụng này và chỉ cập nhật các phần mềm an toàn khác không?\n(Bấm 'Yes' để bỏ qua và tiếp tục, 'No' để hủy thao tác)");
+            if (proceed)
+            {
+                selected = selected.Where(p => !p.IsExcluded).ToList();
+                if (selected.Count == 0)
+                {
+                    _logService.LogInfo("Đã bỏ qua các ứng dụng nhạy cảm, không còn ứng dụng nào khác cần cập nhật.");
+                    return;
+                }
+            }
+            else
+            {
+                return;
+            }
         }
 
         if (IsBusy) return;
@@ -528,7 +564,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     public async Task UpgradeAllAsync()
     {
-        if (!ConfirmAction("Xác nhận cập nhật tất cả", "Bạn có chắc chắn muốn cập nhật toàn bộ các ứng dụng có bản mới?"))
+        if (!ConfirmAction("Xác nhận cập nhật tất cả", "Bạn có chắc chắn muốn cập nhật toàn bộ các ứng dụng có bản mới?\n\n(Hệ thống sẽ tự động BỎ QUA và bảo vệ Microsoft Office và Zalo để tránh lỗi bản quyền và dữ liệu)."))
         {
             return;
         }
@@ -559,7 +595,7 @@ public partial class MainWindowViewModel : ObservableObject
         var priorityList = UpgradableApps.Where(p => p.IsPriority).ToList();
         if (priorityList.Count == 0)
         {
-            _logService.LogInfo("Không có ứng dụng nào thuộc nhóm ưu tiên (WhatsApp, Chrome, Zalo) có bản cập nhật mới.");
+            _logService.LogInfo("Không có ứng dụng nào thuộc nhóm ưu tiên (WhatsApp, Chrome) có bản cập nhật mới.");
             return;
         }
 

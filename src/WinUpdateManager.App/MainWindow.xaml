@@ -132,7 +132,7 @@
                                     <Button Content="🔍 Quét bản mới" Style="{StaticResource SecondaryButton}" Command="{Binding ScanUpgradesCommand}" Margin="0,0,6,0" />
                                     <Button Content="Cập nhật đã chọn" Command="{Binding UpgradeSelectedCommand}" Margin="0,0,6,0" />
                                     <Button Content="Cập nhật tất cả" Command="{Binding UpgradeAllCommand}" Margin="0,0,6,0" />
-                                    <Button Content="Nhóm ưu tiên" Style="{StaticResource SecondaryButton}" Command="{Binding UpgradePriorityGroupCommand}" ToolTip="Chỉ cập nhật nhóm WhatsApp, Chrome, Zalo" />
+                                    <Button Content="Nhóm ưu tiên" Style="{StaticResource SecondaryButton}" Command="{Binding UpgradePriorityGroupCommand}" ToolTip="Chỉ cập nhật nhóm ứng dụng an toàn (WhatsApp, Chrome)" />
                                 </StackPanel>
                             </Grid>
 
@@ -147,10 +147,13 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="Tên ứng dụng" Width="200">
+                                        <GridViewColumn Header="Tên ứng dụng" Width="220">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding WarningNote}" FontSize="10" Foreground="#D97706" Visibility="{Binding IsExcluded, Converter={StaticResource BooleanToVisibilityConverter}}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>

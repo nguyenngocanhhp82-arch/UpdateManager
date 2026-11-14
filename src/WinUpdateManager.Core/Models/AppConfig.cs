@@ -6,8 +6,17 @@ public class AppConfig
     {
         "9NKSQGP7F2NH",       // WhatsApp Microsoft Store
         "WhatsApp.WhatsApp", // WhatsApp Desktop Win32
-        "Google.Chrome",      // Google Chrome
-        "VNG.Zalo"           // Zalo Desktop
+        "Google.Chrome"       // Google Chrome
+    };
+
+    // Danh sách ứng dụng nhạy cảm cần loại trừ khỏi cập nhật tự động
+    // (Office dùng Click-to-Run riêng, Zalo cập nhật per-user khi khởi động)
+    public List<string> ExcludedAppIds { get; set; } = new()
+    {
+        "Microsoft.Office",
+        "Microsoft.365",
+        "VNG.Zalo",
+        "Zalo.Zalo"
     };
 
     public string? CacheDirectory { get; set; }

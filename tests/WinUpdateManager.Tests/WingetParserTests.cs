@@ -163,4 +163,23 @@ Version
         string desc = WingetExitCode.GetDescription(code);
         desc.Should().Contain(expectedSubstring);
     }
+
+    [Theory]
+    [InlineData("Microsoft.Office", "Microsoft Office", true)]
+    [InlineData("Microsoft.Office.2021", "Microsoft Office LTSC Professional Plus 2021", true)]
+    [InlineData("Microsoft.365Apps", "Microsoft 365 Apps", true)]
+    [InlineData("VNG.Zalo", "Zalo", true)]
+    [InlineData("Zalo.Zalo", "Zalo PC", true)]
+    [InlineData("Google.Chrome", "Google Chrome", false)]
+    [InlineData("9NKSQGP7F2NH", "WhatsApp", false)]
+    [InlineData("WhatsApp.WhatsApp", "WhatsApp", false)]
+    public void IsExcludedPackage_DetectsSensitiveApps(string id, string name, bool expectedExcluded)
+    {
+        var config = new ConfigService();
+        var runner = new ProcessRunner(new LogService());
+        var wingetService = new WingetService(runner, new LogService(), config);
+
+        bool isExcluded = wingetService.IsExcludedPackage(id, name);
+        isExcluded.Should().Be(expectedExcluded);
+    }
 }

@@ -69,6 +69,17 @@ public partial class WingetService : IWingetService
             {
                 p.IsPriority = true;
             }
+
+            if (IsExcludedPackage(p.Id, p.Name))
+            {
+                p.IsExcluded = true;
+                p.IsSelected = false; // Không tự động chọn ứng dụng nhạy cảm (Office, Zalo)
+                p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
+            }
+            else
+            {
+                p.IsSelected = true;
+            }
         }
 
         _logService.LogSuccess($"Quét hoàn tất: Phát hiện {packages.Count} ứng dụng có bản cập nhật mới.");
@@ -101,6 +112,17 @@ public partial class WingetService : IWingetService
             if (priorityIds.Contains(p.Id))
             {
                 p.IsPriority = true;
+            }
+
+            if (IsExcludedPackage(p.Id, p.Name))
+            {
+                p.IsExcluded = true;
+                p.IsSelected = false; // Không tự động chọn ứng dụng nhạy cảm (Office, Zalo)
+                p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
+            }
+            else
+            {
+                p.IsSelected = true;
             }
         }
 
@@ -155,9 +177,45 @@ public partial class WingetService : IWingetService
         return result;
     }
 
+    public bool IsExcludedPackage(string packageId, string? packageName = null)
+    {
+        var excludedIds = _configService.CurrentConfig.ExcludedAppIds;
+        if (excludedIds != null)
+        {
+            foreach (var exc in excludedIds)
+            {
+                if (string.Equals(packageId, exc, StringComparison.OrdinalIgnoreCase)) return true;
+                if (packageId.StartsWith(exc + ".", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+        }
+
+        if (packageId.StartsWith("Microsoft.Office", StringComparison.OrdinalIgnoreCase)) return true;
+        if (packageId.StartsWith("Microsoft.365", StringComparison.OrdinalIgnoreCase)) return true;
+        if (!string.IsNullOrWhiteSpace(packageName))
+        {
+            if (packageName.Contains("Microsoft Office", StringComparison.OrdinalIgnoreCase)) return true;
+            if (packageName.Contains("Zalo", StringComparison.OrdinalIgnoreCase) && packageId.Contains("Zalo", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+
+        return false;
+    }
+
     public async Task<ProcessResult> UpgradeAllPackagesAsync(CancellationToken cancellationToken = default)
     {
-        _logService.LogInfo("Đang tiến hành cập nhật TẤT CẢ các ứng dụng có bản mới...");
+        _logService.LogInfo("Đang bảo vệ các ứng dụng nhạy cảm (Office, Zalo)...");
+
+        // Pin all excluded packages so that winget upgrade --all will skip them
+        var excludedIds = _configService.CurrentConfig.ExcludedAppIds ?? new List<string>();
+        foreach (var exc in excludedIds)
+        {
+            try
+            {
+                await _processRunner.RunAsync("winget", new[] { "pin", "add", "--id", exc, "--exact" }, cancellationToken).ConfigureAwait(false);
+            }
+            catch { }
+        }
+
+        _logService.LogInfo("Đang tiến hành cập nhật TẤT CẢ các ứng dụng (đã loại trừ và bảo vệ Office, Zalo)...");
 
         var args = new[]
         {

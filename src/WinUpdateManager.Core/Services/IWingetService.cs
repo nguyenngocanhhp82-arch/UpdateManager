@@ -16,6 +16,7 @@ public interface IWingetService
     Task<ProcessResult> InstallVersionAsync(string packageId, string version, bool force = true, CancellationToken cancellationToken = default);
     Task<ProcessResult> PinPackageAsync(string packageId, CancellationToken cancellationToken = default);
     Task<ProcessResult> UnpinPackageAsync(string packageId, CancellationToken cancellationToken = default);
+    bool IsExcludedPackage(string packageId, string? packageName = null);
 
     // WhatsApp Fast / Offline Features
     Task<WhatsAppStatus> CheckWhatsAppStatusAsync(CancellationToken cancellationToken = default);

@@ -10,6 +10,8 @@ public class WingetPackage
     public bool IsPinned { get; set; }
     public bool IsSelected { get; set; }
     public bool IsPriority { get; set; }
+    public bool IsExcluded { get; set; }
+    public string WarningNote { get; set; } = string.Empty;
 
     public bool HasUpdate => !string.IsNullOrWhiteSpace(AvailableVersion) &&
                              !string.Equals(CurrentVersion, AvailableVersion, StringComparison.OrdinalIgnoreCase);
