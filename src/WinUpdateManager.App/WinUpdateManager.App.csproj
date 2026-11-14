@@ -38,6 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="System.IO" />
     <Resource Include="Assets\app.ico" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
