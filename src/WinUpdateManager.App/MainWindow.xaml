@@ -6,10 +6,10 @@
         xmlns:vm="clr-namespace:WinUpdateManager.App.ViewModels"
         mc:Ignorable="d"
         Title="Win Update Manager"
-        Height="720"
-        Width="1040"
-        MinHeight="560"
-        MinWidth="860"
+        Height="780"
+        Width="1100"
+        MinHeight="600"
+        MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}">
 
@@ -22,7 +22,7 @@
             <!-- Row 2: Splitter / Separator -->
             <RowDefinition Height="Auto" />
             <!-- Row 3: Bottom Log Panel -->
-            <RowDefinition Height="200" MinHeight="100" />
+            <RowDefinition Height="180" MinHeight="90" />
             <!-- Row 4: Status Bar -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -49,33 +49,162 @@
         </Border>
 
         <!-- ROW 1: 5 MAIN TABS -->
-        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Margin="16,10,16,6">
-            <!-- TAB 1: CẬP NHẬT ỨNG DỤNG -->
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Margin="16,8,16,4">
+
+            <!-- ========================================== -->
+            <!-- TAB 1: CẬP NHẬT ỨNG DỤNG                   -->
+            <!-- ========================================== -->
             <TabItem Header="Cập nhật ứng dụng">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,10,0,0" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <!-- WhatsApp Hero Card -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Winget Upgrades List -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="Quản lý cập nhật ứng dụng qua WinGet" FontSize="16" FontWeight="SemiBold" Foreground="#111827" />
-                            <TextBlock Text="Quét và cài đặt các phiên bản mới nhất cho các phần mềm đã cài đặt trên máy tính." FontSize="12" Foreground="#6B7280" Margin="0,4,0,16" />
-                        </StackPanel>
+                    <!-- WHATSAPP HERO CARD -->
+                    <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#86EFAC" BorderThickness="1.5" CornerRadius="6" Padding="16,12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 2: WingetService &amp; Giao diện quản lý ứng dụng." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#25D366" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                        <TextBlock Text="WHATSAPP" FontWeight="Bold" Foreground="#FFFFFF" FontSize="11" />
+                                    </Border>
+                                    <TextBlock Text="Khu vực cập nhật siêu tốc WhatsApp Desktop" FontWeight="Bold" FontSize="14" Foreground="#111827" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Content="Làm mới trạng thái" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshWhatsAppStatusCommand}" />
+                            </Grid>
+
+                            <StackPanel Grid.Row="1" Margin="0,8,0,10">
+                                <TextBlock Text="{Binding WhatsAppInfoText}" FontSize="12" Foreground="#374151" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding WhatsAppCachedBadgeText}" FontSize="11" Foreground="#059669" Margin="0,2,0,0" />
                             </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
+
+                            <!-- WhatsApp Action Buttons -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                <!-- NÚT 1: CẬP NHẬT SIÊU TỐC (Tự động tải về nếu chưa có gói, cài trong 3-5 giây) -->
+                                <Button Content="⚡ Cập nhật siêu tốc WhatsApp" Command="{Binding FastUpdateWhatsAppCommand}" Padding="16,7" Margin="0,0,10,0" ToolTip="Tự động kiểm tra gói trong Cache/LAN; nếu chưa có sẽ tự tải về và cài đặt trực tiếp không qua Store (hoạt động ngay cả khi Windows Update bị WUB tắt)." />
+                                <!-- NÚT 2: Cài từ file Offline tùy chọn -->
+                                <Button Content="📁 Cài từ tệp Offline..." Style="{StaticResource SecondaryButton}" Command="{Binding UpdateWhatsAppFromFileCommand}" Margin="0,0,10,0" ToolTip="Chọn file .msixbundle hoặc .exe từ USB/ổ đĩa để cài tức thì." />
+                                <!-- NÚT 3: Tải file gói cài đặt về máy/LAN -->
+                                <Button Content="⬇ Tải gói cài về Cache/LAN" Style="{StaticResource SecondaryButton}" Command="{Binding DownloadWhatsAppPackageCommand}" ToolTip="Tải gói cài đặt 1 lần duy nhất để chia sẻ cho các máy khác trong văn phòng." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- ALL APP UPGRADES SECTION -->
+                    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Toolbar -->
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Tìm kiếm:" VerticalAlignment="Center" FontSize="12" Foreground="#4B5563" Margin="0,0,6,0" />
+                                    <TextBox Text="{Binding SearchUpgradeFilter, UpdateSourceTrigger=PropertyChanged}" Width="160" Height="26" VerticalContentAlignment="Center" Padding="4,2" />
+                                    <CheckBox Content="Bao gồm bản chưa rõ (--include-unknown)" IsChecked="{Binding IncludeUnknown}" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="🔍 Quét bản mới" Style="{StaticResource SecondaryButton}" Command="{Binding ScanUpgradesCommand}" Margin="0,0,6,0" />
+                                    <Button Content="Cập nhật đã chọn" Command="{Binding UpgradeSelectedCommand}" Margin="0,0,6,0" />
+                                    <Button Content="Cập nhật tất cả" Command="{Binding UpgradeAllCommand}" Margin="0,0,6,0" />
+                                    <Button Content="Nhóm ưu tiên" Style="{StaticResource SecondaryButton}" Command="{Binding UpgradePriorityGroupCommand}" ToolTip="Chỉ cập nhật nhóm WhatsApp, Chrome, Zalo" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Upgrades DataGrid/ListView -->
+                            <ListView Grid.Row="1" ItemsSource="{Binding UpgradableApps}" BorderBrush="#E5E7EB">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Chọn" Width="45">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Tên ứng dụng" Width="200">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Mã định danh (ID)" Width="190" DisplayMemberBinding="{Binding Id}" />
+                                        <GridViewColumn Header="Bản hiện tại" Width="100" DisplayMemberBinding="{Binding CurrentVersion}" />
+                                        <GridViewColumn Header="Bản mới" Width="100">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding AvailableVersion}" FontWeight="Bold" Foreground="#16A34A" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Nguồn" Width="75" DisplayMemberBinding="{Binding Source}" />
+                                        <GridViewColumn Header="Thao tác" Width="180">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Cập nhật" Command="{Binding DataContext.UpgradeSingleAppCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                                        <Button Content="{Binding IsPinned, Converter={x:Null}}" Style="{StaticResource SecondaryButton}" Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="6,3" FontSize="11">
+                                                            <Button.Template>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="3" Padding="6,2">
+                                                                        <TextBlock Text="{Binding IsPinned, Converter={x:Null}}" FontSize="11">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Setter Property="Text" Value="Ghim (Pin)" />
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsPinned}" Value="True">
+                                                                                            <Setter Property="Text" Value="Bỏ ghim" />
+                                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Button.Template>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </Grid>
             </TabItem>
 
-            <!-- TAB 2: WINDOWS UPDATE -->
+            <!-- ========================================== -->
+            <!-- TAB 2: WINDOWS UPDATE                      -->
+            <!-- ========================================== -->
             <TabItem Header="Windows Update">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,10,0,0" Padding="20">
+                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -89,16 +218,18 @@
 
                         <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: WindowsUpdateService (COM API)." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: WindowsUpdateService (COM Microsoft.Update.Session)." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
             </TabItem>
 
-            <!-- TAB 3: GỠ BẢN CẬP NHẬT WINDOWS -->
+            <!-- ========================================== -->
+            <!-- TAB 3: GỠ BẢN CẬP NHẬT WINDOWS             -->
+            <!-- ========================================== -->
             <TabItem Header="Gỡ bản cập nhật Windows">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,10,0,0" Padding="20">
+                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -112,39 +243,127 @@
 
                         <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: HotfixService, gỡ KB và chặn cài lại." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: HotfixService, gỡ KB và tự động ẩn để chặn cài lại." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
             </TabItem>
 
-            <!-- TAB 4: ỨNG DỤNG ĐÃ CÀI / ROLLBACK -->
+            <!-- ========================================== -->
+            <!-- TAB 4: ỨNG DỤNG ĐÃ CÀI / ROLLBACK          -->
+            <!-- ========================================== -->
             <TabItem Header="Ứng dụng đã cài / Rollback">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,10,0,0" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <!-- Rollback Drawer if open -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Installed Apps List -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="Danh sách phần mềm và quay về phiên bản cũ" FontSize="16" FontWeight="SemiBold" Foreground="#111827" />
-                            <TextBlock Text="Tra cứu các phiên bản có sẵn của phần mềm và khôi phục về phiên bản mong muốn." FontSize="12" Foreground="#6B7280" Margin="0,4,0,16" />
-                        </StackPanel>
+                    <!-- ROLLBACK SELECTION DRAWER -->
+                    <Border Grid.Row="0" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,10" Visibility="{Binding IsRollbackPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 2: Rollback ứng dụng &amp; Quản lý ghim phiên bản (Pin)." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <TextBlock Text="Quay về phiên bản cũ (Rollback): " FontWeight="Bold" FontSize="13" Foreground="#92400E" />
+                                    <TextBlock Text="{Binding SelectedInstalledApp.Name}" FontWeight="Bold" FontSize="13" Foreground="#111827" />
+                                    <TextBlock Text="{Binding SelectedInstalledApp.Id, StringFormat=' [{0}]'}" FontSize="12" Foreground="#6B7280" Margin="4,0,0,0" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Content="✕ Đóng" Style="{StaticResource SecondaryButton}" Command="{Binding CloseRollbackPanelCommand}" Padding="8,2" FontSize="11" />
+                            </Grid>
+
+                            <StackPanel Grid.Row="1" Margin="0,8,0,8">
+                                <TextBlock Text="Lưu ý: Ứng dụng từ Microsoft Store thường không hỗ trợ chọn phiên bản cũ qua winget." FontSize="11" Foreground="#B45309" Margin="0,0,0,6" />
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Chọn phiên bản muốn cài đặt:" VerticalAlignment="Center" FontSize="12" Foreground="#374151" Margin="0,0,8,0" />
+                                    <ComboBox ItemsSource="{Binding AvailableVersions}" SelectedItem="{Binding SelectedRollbackVersion}" Width="160" Height="26" VerticalContentAlignment="Center" />
+                                    <CheckBox Content="Ghim phiên bản này sau khi rollback (Pin)" IsChecked="{Binding PinAfterRollback}" VerticalAlignment="Center" Margin="16,0,0,0" FontSize="12" />
+                                </StackPanel>
                             </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                <Button Content="Thực hiện Rollback" Command="{Binding ExecuteRollbackCommand}" Padding="12,5" Margin="0,0,8,0" />
+                                <Button Content="Hủy" Style="{StaticResource SecondaryButton}" Command="{Binding CloseRollbackPanelCommand}" Padding="10,5" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- INSTALLED APPS TABLE -->
+                    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Toolbar -->
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Tìm kiếm ứng dụng:" VerticalAlignment="Center" FontSize="12" Foreground="#4B5563" Margin="0,0,6,0" />
+                                    <TextBox Text="{Binding SearchInstalledFilter, UpdateSourceTrigger=PropertyChanged}" Width="200" Height="26" VerticalContentAlignment="Center" Padding="4,2" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="🔄 Tải lại danh sách" Style="{StaticResource SecondaryButton}" Command="{Binding LoadInstalledAppsCommand}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Installed Apps List -->
+                            <ListView Grid.Row="1" ItemsSource="{Binding InstalledApps}" BorderBrush="#E5E7EB">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Tên ứng dụng" Width="260">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Mã định danh (ID)" Width="220" DisplayMemberBinding="{Binding Id}" />
+                                        <GridViewColumn Header="Phiên bản hiện tại" Width="130" DisplayMemberBinding="{Binding CurrentVersion}" />
+                                        <GridViewColumn Header="Nguồn" Width="80" DisplayMemberBinding="{Binding Source}" />
+                                        <GridViewColumn Header="Thao tác" Width="190">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Rollback..." Style="{StaticResource SecondaryButton}" Command="{Binding DataContext.OpenRollbackDialogCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                                        <Button Content="Gỡ cài đặt" Style="{StaticResource DangerButton}" Command="{Binding DataContext.UninstallAppCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,3" FontSize="11" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </Grid>
             </TabItem>
 
-            <!-- TAB 5: TÙY CHỈNH CẬP NHẬT -->
+            <!-- ========================================== -->
+            <!-- TAB 5: TÙY CHỈNH CẬP NHẬT                  -->
+            <!-- ========================================== -->
             <TabItem Header="Tùy chỉnh cập nhật">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,10,0,0" Padding="20">
+                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -178,7 +397,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Log Panel Header -->
-                <Border Grid.Row="0" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="16,8">
+                <Border Grid.Row="0" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="16,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

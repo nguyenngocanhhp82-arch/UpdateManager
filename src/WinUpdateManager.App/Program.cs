@@ -49,6 +49,7 @@ public static class Program
                 // Self-test: Verify resolution of all services and ViewModels
                 Console.WriteLine("Self-test: Kiểm tra giải quyết phụ thuộc (Dependency Injection)...");
                 _ = host.Services.GetRequiredService<ILogService>();
+                _ = host.Services.GetRequiredService<IConfigService>();
                 _ = host.Services.GetRequiredService<IProcessRunner>();
                 _ = host.Services.GetRequiredService<IWingetService>();
                 _ = host.Services.GetRequiredService<IWindowsUpdateService>();
@@ -95,6 +96,7 @@ public static class Program
     {
         // Core Services
         services.AddSingleton<ILogService, LogService>();
+        services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<IWingetService, WingetService>();
         services.AddSingleton<IWindowsUpdateService, WindowsUpdateService>();
