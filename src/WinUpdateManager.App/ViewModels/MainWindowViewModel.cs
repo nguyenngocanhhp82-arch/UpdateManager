@@ -15,6 +15,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IConfigService _configService;
     private readonly IWindowsUpdateService _windowsUpdateService;
     private readonly IHotfixService _hotfixService;
+    private readonly IPolicyService _policyService;
+    private readonly IScheduleService _scheduleService;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -46,6 +48,19 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _whatsAppCachedBadgeText = string.Empty;
+
+    // --- Tab 5: Tùy chỉnh cập nhật & Lịch tự động ---
+    [ObservableProperty]
+    private UpdatePolicyModel _policyModel = new();
+
+    [ObservableProperty]
+    private ScheduleTaskModel _scheduleModel = new();
+
+    [ObservableProperty]
+    private string _scheduleLogText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isScheduleLogModalOpen;
 
     public ObservableCollection<WingetPackage> UpgradableApps { get; } = new();
     private readonly List<WingetPackage> _allUpgradableApps = new();
@@ -108,7 +123,9 @@ public partial class MainWindowViewModel : ObservableObject
         IWingetService wingetService,
         IConfigService configService,
         IWindowsUpdateService windowsUpdateService,
-        IHotfixService hotfixService)
+        IHotfixService hotfixService,
+        IPolicyService policyService,
+        IScheduleService scheduleService)
     {
         _logService = logService;
         _processRunner = processRunner;
@@ -116,6 +133,8 @@ public partial class MainWindowViewModel : ObservableObject
         _configService = configService;
         _windowsUpdateService = windowsUpdateService;
         _hotfixService = hotfixService;
+        _policyService = policyService;
+        _scheduleService = scheduleService;
 
         // Initialize with existing log entries
         foreach (var entry in _logService.GetRecentEntries())
@@ -145,6 +164,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         await RefreshWhatsAppStatusAsync().ConfigureAwait(false);
+        await LoadPoliciesAsync().ConfigureAwait(false);
+        await LoadScheduleStatusAsync().ConfigureAwait(false);
     }
 
     private void OnLogEntryAdded(LogEntry entry)
@@ -1033,6 +1054,222 @@ public partial class MainWindowViewModel : ObservableObject
             IsBusy = false;
             StatusText = "Sẵn sàng";
         }
+    }
+
+    // ==========================================
+    // TAB 5: TÙY CHỈNH CẬP NHẬT & LỊCH TỰ ĐỘNG
+    // ==========================================
+
+    [RelayCommand]
+    public async Task LoadPoliciesAsync()
+    {
+        try
+        {
+            var policies = await Task.Run(() => _policyService.GetCurrentPolicies());
+            ExecuteOnUIThread(() => PolicyModel = policies);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi nạp chính sách Registry: " + ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    public async Task ApplyPoliciesAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang lưu cấu hình chính sách cập nhật vào Windows Registry...";
+
+        try
+        {
+            await Task.Run(() => _policyService.ApplyPolicies(PolicyModel));
+            await LoadPoliciesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi áp dụng chính sách: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task ResetPoliciesAsync()
+    {
+        if (!ConfirmAction(
+            "Khôi phục mặc định",
+            "Bạn có chắc chắn muốn xóa toàn bộ các chính sách đã can thiệp trong Registry về mặc định của Windows?"))
+        {
+            return;
+        }
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang khôi phục chính sách mặc định...";
+
+        try
+        {
+            await Task.Run(() => _policyService.ResetToDefaults());
+            await LoadPoliciesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi khôi phục mặc định: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task ToggleWuauservAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+
+        try
+        {
+            bool willDisable = !PolicyModel.IsWuauservDisabled;
+            string msg = willDisable
+                ? "Bạn có chắc chắn muốn Khóa/Tắt dịch vụ Windows Update (wuauserv)?"
+                : "Bạn có chắc chắn muốn Bật lại dịch vụ Windows Update (wuauserv - Manual)?";
+
+            if (!ConfirmAction("Cấu hình dịch vụ wuauserv", msg))
+            {
+                return;
+            }
+
+            StatusText = willDisable ? "Đang khóa dịch vụ wuauserv..." : "Đang bật dịch vụ wuauserv...";
+            await _policyService.SetWuauservDisabledAsync(willDisable).ConfigureAwait(false);
+            await LoadPoliciesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi thay đổi trạng thái dịch vụ wuauserv: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadScheduleStatusAsync()
+    {
+        try
+        {
+            var status = await _scheduleService.GetScheduleStatusAsync().ConfigureAwait(false);
+            ExecuteOnUIThread(() => ScheduleModel = status);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi đọc trạng thái lịch nâng cấp: " + ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    public async Task SaveScheduleAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang tạo/cập nhật tác vụ tự động trong Task Scheduler...";
+
+        try
+        {
+            var result = await _scheduleService.CreateOrUpdateScheduleAsync(ScheduleModel).ConfigureAwait(false);
+            await LoadScheduleStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi lưu lịch tự động: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DeleteScheduleAsync()
+    {
+        if (!ConfirmAction("Xác nhận xóa lịch", "Bạn có chắc chắn muốn xóa tác vụ tự động nâng cấp khỏi Windows Task Scheduler?"))
+        {
+            return;
+        }
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang xóa tác vụ tự động...";
+
+        try
+        {
+            await _scheduleService.DeleteScheduleAsync().ConfigureAwait(false);
+            await LoadScheduleStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi xóa lịch: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task RunScheduleNowAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang kích hoạt tác vụ chạy ngầm ngay lập tức...";
+
+        try
+        {
+            await _scheduleService.RunScheduleNowAsync().ConfigureAwait(false);
+            await LoadScheduleStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi kích hoạt chạy lịch: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task ViewScheduleLogAsync()
+    {
+        try
+        {
+            string content = await _scheduleService.GetScheduleLogAsync().ConfigureAwait(false);
+            ExecuteOnUIThread(() =>
+            {
+                ScheduleLogText = content;
+                IsScheduleLogModalOpen = true;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Không thể đọc file auto-upgrade.log: " + ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    public void CloseScheduleLogModal()
+    {
+        IsScheduleLogModalOpen = false;
     }
 
     // ==========================================

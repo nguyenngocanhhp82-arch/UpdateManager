@@ -30,6 +30,10 @@ public static class Program
                                         string.Equals(a, "-selftest", StringComparison.OrdinalIgnoreCase) ||
                                         string.Equals(a, "/selftest", StringComparison.OrdinalIgnoreCase));
 
+        bool isAutoUpgrade = args.Any(a => string.Equals(a, "--auto-upgrade", StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(a, "-auto-upgrade", StringComparison.OrdinalIgnoreCase) ||
+                                           string.Equals(a, "/auto-upgrade", StringComparison.OrdinalIgnoreCase));
+
         try
         {
             if (isSelfTest)
@@ -44,9 +48,9 @@ public static class Program
                 })
                 .Build();
 
+            // Self-test execution (CI/CD smoke test)
             if (isSelfTest)
             {
-                // Self-test: Verify resolution of all services and ViewModels
                 Console.WriteLine("Self-test: Kiểm tra giải quyết phụ thuộc (Dependency Injection)...");
                 _ = host.Services.GetRequiredService<ILogService>();
                 _ = host.Services.GetRequiredService<IConfigService>();
@@ -65,7 +69,6 @@ public static class Program
 
 #if WINDOWS || NET8_0_WINDOWS || WINDOWS7_0_OR_GREATER
                 Console.WriteLine("Self-test: Kiểm tra nạp XAML MainWindow...");
-                // Dựng thử MainWindow để phát hiện lỗi parse XAML hoặc ResourceDictionary
                 var mainWindow = new MainWindow(vm);
                 if (mainWindow == null)
                 {
@@ -75,6 +78,12 @@ public static class Program
 
                 Console.WriteLine("[SELFTEST] Smoke test khởi động thành công (ExitCode: 0)!");
                 return 0;
+            }
+
+            // Headless Scheduled Task runner (--auto-upgrade)
+            if (isAutoUpgrade)
+            {
+                return RunHeadlessAutoUpgrade(host);
             }
 
 #if WINDOWS || NET8_0_WINDOWS || WINDOWS7_0_OR_GREATER
@@ -88,6 +97,71 @@ public static class Program
         catch (Exception ex)
         {
             LogAndShowStartupError(ex, "Program.Main");
+            return 1;
+        }
+    }
+
+    private static int RunHeadlessAutoUpgrade(IHost host)
+    {
+        var scheduleService = host.Services.GetRequiredService<IScheduleService>();
+        var wingetService = host.Services.GetRequiredService<IWingetService>();
+        var policyService = host.Services.GetRequiredService<IPolicyService>();
+        var logPath = scheduleService.GetScheduleLogPath();
+
+        void AppendAutoUpgradeLog(string text)
+        {
+            try
+            {
+                string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {text}";
+                Console.WriteLine(line);
+                File.AppendAllText(logPath, line + Environment.NewLine, Encoding.UTF8);
+            }
+            catch { }
+        }
+
+        AppendAutoUpgradeLog("=================================================");
+        AppendAutoUpgradeLog("BẮT ĐẦU CHẠY LỊCH NÂNG CẤP TỰ ĐỘNG (SCHEDULED TASK)");
+
+        bool wasWuauservDisabled = policyService.IsWuauservDisabled();
+        if (wasWuauservDisabled)
+        {
+            AppendAutoUpgradeLog("Trạng thái hiện tại: Windows Update đang bị khóa (Disabled).");
+        }
+
+        try
+        {
+            // 1. WhatsApp Fast Update
+            AppendAutoUpgradeLog("Đang kiểm tra và cập nhật siêu tốc WhatsApp...");
+            var whatsAppTask = wingetService.FastUpdateWhatsAppAsync().GetAwaiter().GetResult();
+            AppendAutoUpgradeLog($"Kết quả cập nhật WhatsApp: ExitCode {whatsAppTask.ExitCode} (Thành công: {whatsAppTask.Succeeded})");
+
+            // 2. All Apps Upgrade
+            AppendAutoUpgradeLog("Đang cập nhật toàn bộ ứng dụng qua winget...");
+            var allTask = wingetService.UpgradeAllPackagesAsync().GetAwaiter().GetResult();
+            AppendAutoUpgradeLog($"Kết quả cập nhật ứng dụng: ExitCode {allTask.ExitCode} (Thành công: {allTask.Succeeded})");
+
+            // 3. Guarantee wuauserv remains locked if it was locked initially
+            if (wasWuauservDisabled)
+            {
+                policyService.SetWuauservDisabledAsync(true).GetAwaiter().GetResult();
+                AppendAutoUpgradeLog("Bảo đảm an toàn: Đã tái khóa dịch vụ Windows Update về trạng thái Disabled.");
+            }
+
+            AppendAutoUpgradeLog("HOÀN TẤT TIẾN TRÌNH LỊCH NÂNG CẤP TỰ ĐỘNG THÀNH CÔNG.");
+            AppendAutoUpgradeLog("=================================================");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            AppendAutoUpgradeLog($"LỖI TRONG TIẾN TRÌNH NÂNG CẤP TỰ ĐỘNG: {ex.Message}");
+            if (wasWuauservDisabled)
+            {
+                try
+                {
+                    policyService.SetWuauservDisabledAsync(true).GetAwaiter().GetResult();
+                }
+                catch { }
+            }
             return 1;
         }
     }

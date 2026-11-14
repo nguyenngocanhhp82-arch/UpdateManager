@@ -6,10 +6,10 @@
         xmlns:vm="clr-namespace:WinUpdateManager.App.ViewModels"
         mc:Ignorable="d"
         Title="Win Update Manager"
-        Height="780"
-        Width="1100"
-        MinHeight="600"
-        MinWidth="900"
+        Height="800"
+        Width="1120"
+        MinHeight="620"
+        MinWidth="920"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}">
 
@@ -298,7 +298,6 @@
                                                                         </TextBlock.Style>
                                                                     </TextBlock>
                                                                 </Border>
-                              
                                                             </ControlTemplate>
                                                         </Button.Template>
                                                     </Button>
@@ -570,25 +569,304 @@
             <!-- TAB 5: TÙY CHỈNH CẬP NHẬT                  -->
             <!-- ========================================== -->
             <TabItem Header="Tùy chỉnh cập nhật">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
-                    <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="0,8,0,10">
                         <Grid.RowDefinitions>
+                            <!-- Auto Upgrade Scheduled Task Card -->
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
+                            <!-- Registry Policies Card -->
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="Chính sách cập nhật và Lịch tự động" FontSize="16" FontWeight="SemiBold" Foreground="#111827" />
-                            <TextBlock Text="Tùy chỉnh chế độ cập nhật, hoãn nâng cấp, khóa phiên bản tính năng và đặt lịch nâng cấp tự động." FontSize="12" Foreground="#6B7280" Margin="0,4,0,16" />
-                        </StackPanel>
+                        <!-- SCHEDULED TASK CARD (LỊCH TỰ ĐỘNG NÂNG CẤP) -->
+                        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#3B82F6" BorderThickness="1.5" CornerRadius="6" Padding="16,14" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 4: PolicyService &amp; ScheduleService." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                                <!-- Header -->
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="⏰ Lịch tự động nâng cấp ứng dụng (Scheduled Task)" FontWeight="Bold" FontSize="15" Foreground="#1E40AF" />
+                                        <TextBlock Text="Chạy ngầm cập nhật WhatsApp và các phần mềm theo lịch định kỳ, tự động xử lý ngay cả khi bạn TẮT HOÀN TOÀN Windows Update." FontSize="12" Foreground="#4B5563" Margin="0,3,0,0" />
+                                    </StackPanel>
+
+                                    <Button Grid.Column="1" Content="📋 Xem auto-upgrade.log" Style="{StaticResource SecondaryButton}" Command="{Binding ViewScheduleLogCommand}" />
+                                </Grid>
+
+                                <!-- Schedule Settings -->
+                                <Border Grid.Row="1" Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,10,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <TextBlock Text="Chu kỳ:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="#0369A1" Margin="0,0,6,0" />
+                                            <ComboBox SelectedValue="{Binding ScheduleModel.ScheduleType}" SelectedValuePath="Content" Width="100" Height="26" VerticalContentAlignment="Center">
+                                                <ComboBoxItem Content="Daily" IsSelected="True" />
+                                                <ComboBoxItem Content="Weekly" />
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <TextBlock Text="Giờ chạy (HH:mm):" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="#0369A1" Margin="0,0,6,0" />
+                                            <TextBox Text="{Binding ScheduleModel.ExecutionTime}" Width="70" Height="26" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="💾 Lưu / Tạo lịch" Command="{Binding SaveScheduleCommand}" Margin="0,0,6,0" Padding="12,5" />
+                                            <Button Content="🗑 Xóa lịch" Style="{StaticResource DangerButton}" Command="{Binding DeleteScheduleCommand}" Margin="0,0,6,0" Padding="10,5" />
+                                            <Button Content="▶ Chạy thử ngay" Style="{StaticResource SecondaryButton}" Command="{Binding RunScheduleNowCommand}" Padding="10,5" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Task Status Overview -->
+                                <Border Grid.Row="2" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Trạng thái tác vụ:" FontSize="11" Foreground="#6B7280" />
+                                            <TextBlock Text="{Binding ScheduleModel.Status}" FontWeight="Bold" FontSize="12" Foreground="#111827" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Lần chạy gần nhất:" FontSize="11" Foreground="#6B7280" />
+                                            <TextBlock Text="{Binding ScheduleModel.LastRunTime}" FontSize="12" Foreground="#111827" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Kết quả gần nhất:" FontSize="11" Foreground="#6B7280" />
+                                            <TextBlock Text="{Binding ScheduleModel.LastResult}" FontSize="12" Foreground="#059669" FontWeight="SemiBold" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="3">
+                                            <TextBlock Text="Lần chạy tiếp theo:" FontSize="11" Foreground="#6B7280" />
+                                            <TextBlock Text="{Binding ScheduleModel.NextRunTime}" FontSize="12" Foreground="#111827" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Auto-upgrade Log Modal / Viewer (if open) -->
+                                <Border Grid.Row="3" Background="#FEF9C3" BorderBrush="#CA8A04" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,10,0,0" Visibility="{Binding IsScheduleLogModalOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="120" />
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                                            <TextBlock Text="Nội dung auto-upgrade.log:" FontWeight="Bold" FontSize="12" Foreground="#854D0E" />
+                                            <Button Content="✕ Đóng" Style="{StaticResource SecondaryButton}" Command="{Binding CloseScheduleLogModalCommand}" HorizontalAlignment="Right" Padding="6,2" FontSize="11" />
+                                        </Grid>
+
+                                        <TextBox Grid.Row="1" Text="{Binding ScheduleLogText}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas, monospace" FontSize="11" Background="#FFFFFF" Padding="6" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- REGISTRY POLICIES CARD -->
+                        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="16,14">
+                            <StackPanel>
+                                <!-- Header -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="⚙️ Chính sách Windows Update qua Registry (HKLM)" FontWeight="Bold" FontSize="15" Foreground="#111827" />
+                                        <TextBlock Text="Cấu hình trực tiếp các chính sách kiểm soát Windows Update, hoãn bản vá, khóa phiên bản và dịch vụ wuauserv." FontSize="12" Foreground="#6B7280" Margin="0,2,0,0" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="💾 Lưu chính sách" Command="{Binding ApplyPoliciesCommand}" Margin="0,0,8,0" Padding="14,6" />
+                                        <Button Content="Khôi phục mặc định" Style="{StaticResource SecondaryButton}" Command="{Binding ResetPoliciesCommand}" Padding="10,6" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- SECTION 1: CHẾ ĐỘ CẬP NHẬT & DỊCH VỤ WUAUSERV -->
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Dịch vụ wuauserv toggle -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Dịch vụ cập nhật hệ thống (wuauserv):" FontWeight="Bold" FontSize="13" Foreground="#111827" />
+                                                <TextBlock Text="Khóa/Tắt dịch vụ wuauserv để chặn triệt để Windows tự động cập nhật ngầm." FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Command="{Binding ToggleWuauservCommand}" Padding="12,5">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="12,5">
+                                                            <TextBlock FontSize="12" FontWeight="Bold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Text" Value="🔒 Khóa/Tắt dịch vụ (wuauserv)" />
+                                                                        <Setter Property="Foreground" Value="#DC2626" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding PolicyModel.IsWuauservDisabled}" Value="True">
+                                                                                <Setter Property="Text" Value="🔓 Bật lại dịch vụ (Manual)" />
+                                                                                <Setter Property="Foreground" Value="#059669" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Chế độ AU -->
+                                        <StackPanel Grid.Row="1">
+                                            <TextBlock Text="Chế độ tự động cập nhật (AUOptions):" FontWeight="SemiBold" FontSize="12" Foreground="#374151" Margin="0,0,0,6" />
+                                            <StackPanel Orientation="Vertical">
+                                                <RadioButton Content="Tắt hoàn toàn tự động cập nhật (NoAutoUpdate = 1) [Khuyên dùng cho máy chặn cập nhật]" IsChecked="{Binding PolicyModel.AuMode, Converter={x:Null}}" Margin="0,2" FontSize="12" FontWeight="SemiBold">
+                                                    <RadioButton.Style>
+                                                        <Style TargetType="RadioButton">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PolicyModel.AuMode}" Value="CompletelyDisabled">
+                                                                    <Setter Property="IsChecked" Value="True" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RadioButton.Style>
+                                                </RadioButton>
+                                                <RadioButton Content="Chỉ thông báo khi có bản cập nhật, không tự tải (NoAutoUpdate = 0, AUOptions = 2)" Margin="0,2" FontSize="12">
+                                                    <RadioButton.Style>
+                                                        <Style TargetType="RadioButton">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PolicyModel.AuMode}" Value="NotifyBeforeDownload">
+                                                                    <Setter Property="IsChecked" Value="True" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RadioButton.Style>
+                                                </RadioButton>
+                                                <RadioButton Content="Tự động tải về, nhưng hỏi trước khi cài đặt (AUOptions = 3)" Margin="0,2" FontSize="12">
+                                                    <RadioButton.Style>
+                                                        <Style TargetType="RadioButton">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PolicyModel.AuMode}" Value="AutoDownloadNotifyInstall">
+                                                                    <Setter Property="IsChecked" Value="True" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RadioButton.Style>
+                                                </RadioButton>
+                                                <RadioButton Content="Tự động tải và cài đặt (AUOptions = 4)" Margin="0,2" FontSize="12">
+                                                    <RadioButton.Style>
+                                                        <Style TargetType="RadioButton">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PolicyModel.AuMode}" Value="AutoDownloadAndInstall">
+                                                                    <Setter Property="IsChecked" Value="True" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RadioButton.Style>
+                                                </RadioButton>
+                                                <RadioButton Content="Mặc định của Windows (Xóa các khóa chính sách AU)" Margin="0,2" FontSize="12">
+                                                    <RadioButton.Style>
+                                                        <Style TargetType="RadioButton">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PolicyModel.AuMode}" Value="Default">
+                                                                    <Setter Property="IsChecked" Value="True" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </RadioButton.Style>
+                                                </RadioButton>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- SECTION 2: HOÃN & KHÓA PHIÊN BẢN (DEFER & TARGET RELEASE) -->
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Hoãn cập nhật &amp; Khóa phiên bản tính năng:" FontWeight="Bold" FontSize="13" Foreground="#111827" Margin="0,0,0,10" />
+
+                                        <!-- Defer Quality Updates -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                                            <CheckBox Content="Hoãn bản cập nhật chất lượng (Quality Updates):" IsChecked="{Binding PolicyModel.DeferQualityUpdates}" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0" />
+                                            <TextBox Text="{Binding PolicyModel.DeferQualityDays}" Width="50" Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                            <TextBlock Text="ngày (tối đa 30 ngày)" VerticalAlignment="Center" FontSize="12" Foreground="#6B7280" Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <!-- Defer Feature Updates -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                                            <CheckBox Content="Hoãn bản cập nhật tính năng (Feature Updates):" IsChecked="{Binding PolicyModel.DeferFeatureUpdates}" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0" />
+                                            <TextBox Text="{Binding PolicyModel.DeferFeatureDays}" Width="50" Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                            <TextBlock Text="ngày (tối đa 365 ngày)" VerticalAlignment="Center" FontSize="12" Foreground="#6B7280" Margin="6,0,0,0" />
+                                        </StackPanel>
+
+                                        <!-- Target Release Version Lock -->
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <CheckBox Content="Khóa phiên bản tính năng (TargetReleaseVersion):" IsChecked="{Binding PolicyModel.TargetReleaseVersionEnabled}" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0" />
+                                            <TextBox Text="{Binding PolicyModel.ProductVersion}" Width="90" Height="24" VerticalContentAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBlock Text="Phiên bản:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0" />
+                                            <TextBox Text="{Binding PolicyModel.TargetReleaseVersionInfo}" Width="60" Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                            <TextBlock Text="(ví dụ: 23H2)" VerticalAlignment="Center" FontSize="11" Foreground="#6B7280" Margin="6,0,0,0" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- SECTION 3: CÁC TÙY CHỌN AN TOÀN BỔ SUNG -->
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Các tùy chọn an toàn bổ sung:" FontWeight="Bold" FontSize="13" Foreground="#111827" Margin="0,0,0,10" />
+
+                                        <CheckBox Content="Không tự khởi động lại khi có người dùng đang đăng nhập (NoAutoRebootWithLoggedOnUsers)" IsChecked="{Binding PolicyModel.NoAutoRebootWithLoggedOnUsers}" FontSize="12" Margin="0,0,0,8" />
+                                        <CheckBox Content="Không cài đặt Driver qua Windows Update (ExcludeWUDriversInQualityUpdate)" IsChecked="{Binding PolicyModel.ExcludeDriversInQualityUpdate}" FontSize="12" Margin="0,0,0,8" />
+                                        <CheckBox Content="Tắt tự động cập nhật ứng dụng của Microsoft Store (AutoDownload = 2)" IsChecked="{Binding PolicyModel.DisableStoreAutoDownload}" FontSize="12" Margin="0,0,0,8" />
+
+                                        <!-- Active Hours -->
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <CheckBox Content="Giờ hoạt động (Active Hours): từ" IsChecked="{Binding PolicyModel.ActiveHoursEnabled}" VerticalAlignment="Center" FontSize="12" Margin="0,0,6,0" />
+                                            <TextBox Text="{Binding PolicyModel.ActiveHoursStart}" Width="40" Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                            <TextBlock Text="giờ đến" VerticalAlignment="Center" FontSize="12" Margin="6,0,6,0" />
+                                            <TextBox Text="{Binding PolicyModel.ActiveHoursEnd}" Width="40" Height="24" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                            <TextBlock Text="giờ (không tự khởi động lại trong khoảng giờ này)" VerticalAlignment="Center" FontSize="11" Foreground="#6B7280" Margin="6,0,0,0" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </Grid>
-                </Border>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 
