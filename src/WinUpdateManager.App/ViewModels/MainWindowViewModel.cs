@@ -249,6 +249,67 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task UpdateEverythingAsync()
+    {
+        if (IsBusy) return;
+
+        bool confirm = ConfirmAction(
+            "Cập nhật toàn bộ hệ thống",
+            "Bạn có muốn thực hiện chu trình cập nhật toàn diện:\n\n" +
+            "1. Cập nhật nhanh ứng dụng WhatsApp (kể cả khi đã tắt Windows Update)\n" +
+            "2. Quét và cập nhật toàn bộ ứng dụng winget (winget upgrade --all)\n" +
+            "3. Kiểm tra các bản cập nhật Windows Update mới\n\n" +
+            "Quá trình này sẽ chạy tự động và hiển thị tiến trình chi tiết bên dưới. Bạn có muốn tiếp tục?");
+
+        if (!confirm) return;
+
+        IsBusy = true;
+        StatusText = "Đang thực hiện cập nhật toàn bộ hệ thống...";
+        _logService.LogInfo("=== BẮT ĐẦU CHU TRÌNH CẬP NHẬT TOÀN BỘ HỆ THỐNG ===");
+
+        try
+        {
+            // Bước 1: WhatsApp
+            StatusText = "1/3: Đang cập nhật nhanh WhatsApp...";
+            _logService.LogInfo(">>> [1/3] Cập nhật siêu tốc WhatsApp...");
+            await _wingetService.FastUpdateWhatsAppAsync().ConfigureAwait(false);
+            await RefreshWhatsAppStatusAsync().ConfigureAwait(false);
+
+            // Bước 2: Winget All
+            StatusText = "2/3: Đang cập nhật toàn bộ phần mềm (winget)...";
+            _logService.LogInfo(">>> [2/3] Nâng cấp toàn bộ ứng dụng hệ thống qua winget...");
+            await _wingetService.UpgradeAllPackagesAsync().ConfigureAwait(false);
+            await ScanUpgradesAsync().ConfigureAwait(false);
+
+            // Bước 3: Scan Windows Update
+            StatusText = "3/3: Đang quét kiểm tra Windows Update...";
+            _logService.LogInfo(">>> [3/3] Quét các bản vá Windows Update chờ cài đặt...");
+            var wuItems = await _windowsUpdateService.SearchUpdatesAsync(includeHidden: false).ConfigureAwait(false);
+            ExecuteOnUIThread(() =>
+            {
+                WindowsUpdates.Clear();
+                foreach (var item in wuItems)
+                {
+                    item.IsSelected = true;
+                    WindowsUpdates.Add(item);
+                }
+                WindowsUpdateSummary = $"Tìm thấy {WindowsUpdates.Count} bản cập nhật Windows sẵn sàng cài đặt.";
+            });
+
+            _logService.LogSuccess("=== HOÀN TẤT CHU TRÌNH CẬP NHẬT TOÀN BỘ HỆ THỐNG ===");
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi trong chu trình cập nhật toàn bộ: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
     public async Task FastUpdateWhatsAppAsync()
     {
         if (IsBusy) return;

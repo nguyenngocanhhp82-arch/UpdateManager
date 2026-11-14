@@ -6,6 +6,7 @@
         xmlns:vm="clr-namespace:WinUpdateManager.App.ViewModels"
         mc:Ignorable="d"
         Title="Win Update Manager"
+        Icon="Assets/app.ico"
         Height="800"
         Width="1120"
         MinHeight="620"
@@ -41,6 +42,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="🚀 Cập nhật mọi thứ" Style="{StaticResource SuccessButton}" Command="{Binding UpdateEverythingCommand}" Padding="14,6" Margin="0,0,12,0" ToolTip="Cập nhật nhanh WhatsApp + nâng cấp toàn bộ ứng dụng winget + kiểm tra cập nhật Windows" />
                     <Border Background="#EEF2FF" CornerRadius="12" Padding="10,4">
                         <TextBlock Text="Quyền: Quản trị viên (Admin)" FontSize="11" FontWeight="SemiBold" Foreground="#4F46E5" />
                     </Border>

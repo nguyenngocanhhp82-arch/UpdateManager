@@ -13,6 +13,7 @@
     <StartupObject>WinUpdateManager.App.Program</StartupObject>
     <RootNamespace>WinUpdateManager.App</RootNamespace>
     <AssemblyName>WinUpdateManager.App</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
@@ -37,6 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\app.ico" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
