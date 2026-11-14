@@ -69,6 +69,11 @@ public static class Program
                 }
 
 #if WINDOWS || NET8_0_WINDOWS || WINDOWS7_0_OR_GREATER
+                Console.WriteLine("Self-test: Khởi tạo App và nạp tài nguyên XAML...");
+                if (System.Windows.Application.Current == null)
+                {
+                    _ = new App(host.Services);
+                }
                 Console.WriteLine("Self-test: Kiểm tra nạp XAML MainWindow...");
                 var mainWindow = new MainWindow(vm);
                 if (mainWindow == null)

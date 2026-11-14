@@ -12,7 +12,7 @@
         MinHeight="620"
         MinWidth="920"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource WindowBackgroundBrush}">
+        Background="#F3F4F6">
 
     <Grid>
         <Grid.RowDefinitions>
