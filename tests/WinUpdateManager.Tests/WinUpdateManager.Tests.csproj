@@ -21,7 +21,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WinUpdateManager.Core\WinUpdateManager.Core.csproj" />
-    <ProjectReference Include="..\..\src\WinUpdateManager.App\WinUpdateManager.App.csproj" />
   </ItemGroup>
 
 </Project>
