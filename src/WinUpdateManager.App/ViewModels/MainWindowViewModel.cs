@@ -13,6 +13,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IProcessRunner _processRunner;
     private readonly IWingetService _wingetService;
     private readonly IConfigService _configService;
+    private readonly IWindowsUpdateService _windowsUpdateService;
+    private readonly IHotfixService _hotfixService;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -48,6 +50,36 @@ public partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<WingetPackage> UpgradableApps { get; } = new();
     private readonly List<WingetPackage> _allUpgradableApps = new();
 
+    // --- Tab 2: Windows Update ---
+    [ObservableProperty]
+    private bool _showHiddenWindowsUpdates;
+
+    [ObservableProperty]
+    private bool _rebootRequired;
+
+    [ObservableProperty]
+    private string _windowsUpdateSummary = "Chưa quét bản cập nhật Windows.";
+
+    public ObservableCollection<WindowsUpdateItem> WindowsUpdates { get; } = new();
+
+    // --- Tab 3: Gỡ bản cập nhật Windows ---
+    [ObservableProperty]
+    private string _searchHotfixFilter = string.Empty;
+
+    [ObservableProperty]
+    private bool _autoCreateRestorePoint = true;
+
+    [ObservableProperty]
+    private bool _autoBlockReinstall = true;
+
+    [ObservableProperty]
+    private bool _isDismMode;
+
+    public ObservableCollection<InstalledHotfix> InstalledHotfixes { get; } = new();
+    private readonly List<InstalledHotfix> _allInstalledHotfixes = new();
+
+    public ObservableCollection<DismPackage> DismPackages { get; } = new();
+
     // --- Tab 4: Ứng dụng đã cài / Rollback ---
     [ObservableProperty]
     private string _searchInstalledFilter = string.Empty;
@@ -74,12 +106,16 @@ public partial class MainWindowViewModel : ObservableObject
         ILogService logService,
         IProcessRunner processRunner,
         IWingetService wingetService,
-        IConfigService configService)
+        IConfigService configService,
+        IWindowsUpdateService windowsUpdateService,
+        IHotfixService hotfixService)
     {
         _logService = logService;
         _processRunner = processRunner;
         _wingetService = wingetService;
         _configService = configService;
+        _windowsUpdateService = windowsUpdateService;
+        _hotfixService = hotfixService;
 
         // Initialize with existing log entries
         foreach (var entry in _logService.GetRecentEntries())
@@ -154,7 +190,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // ==========================================
-    // WHATSAPP SPECIAL ACTIONS (GIAI ĐOẠN 2)
+    // TAB 1: WHATSAPP & APP UPDATES
     // ==========================================
 
     [RelayCommand]
@@ -191,11 +227,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Nút 1: Cập nhật siêu tốc WhatsApp
-    /// Tự động kiểm tra gói trong Cache/LAN -> Nếu chưa có, tự động tải về -> Cài đặt tức thì chỉ trong 3-5 giây!
-    /// Bỏ qua Windows Update Blocker và Store hang.
-    /// </summary>
     [RelayCommand]
     public async Task FastUpdateWhatsAppAsync()
     {
@@ -223,9 +254,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Cho phép người dùng hoặc IT chọn file .msixbundle / .exe từ máy tính hoặc USB
-    /// </summary>
     [RelayCommand]
     public async Task UpdateWhatsAppFromFileAsync()
     {
@@ -267,9 +295,6 @@ public partial class MainWindowViewModel : ObservableObject
 #endif
     }
 
-    /// <summary>
-    /// Tải gói cài đặt mới nhất về bộ nhớ đệm / thư mục chia sẻ LAN
-    /// </summary>
     [RelayCommand]
     public async Task DownloadWhatsAppPackageAsync()
     {
@@ -295,10 +320,6 @@ public partial class MainWindowViewModel : ObservableObject
             StatusText = "Sẵn sàng";
         }
     }
-
-    // ==========================================
-    // TAB 1: CẬP NHẬT ỨNG DỤNG (WINGET UPGRADE)
-    // ==========================================
 
     [RelayCommand]
     public async Task ScanUpgradesAsync()
@@ -511,6 +532,333 @@ public partial class MainWindowViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    // ==========================================
+    // TAB 2: WINDOWS UPDATE (COM API)
+    // ==========================================
+
+    [RelayCommand]
+    public async Task ScanWindowsUpdatesAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang quét các bản cập nhật Windows từ Microsoft.Update.Session...";
+
+        try
+        {
+            var updates = await _windowsUpdateService.SearchUpdatesAsync(ShowHiddenWindowsUpdates).ConfigureAwait(false);
+            ExecuteOnUIThread(() =>
+            {
+                WindowsUpdates.Clear();
+                long totalBytes = 0;
+                foreach (var u in updates)
+                {
+                    WindowsUpdates.Add(u);
+                    totalBytes += u.SizeBytes;
+                }
+
+                string stateText = ShowHiddenWindowsUpdates ? "đã ẩn" : "chờ cài đặt";
+                WindowsUpdateSummary = WindowsUpdates.Count > 0
+                    ? $"Có {WindowsUpdates.Count} bản cập nhật Windows {stateText} (Tổng dung lượng: {WindowsUpdateItem.FormatSize(totalBytes)})."
+                    : $"Hệ điều hành đã cập nhật bản mới nhất (không có bản cập nhật {stateText}).";
+            });
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi quét Windows Update: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task InstallSelectedWindowsUpdatesAsync()
+    {
+        var selected = WindowsUpdates.Where(u => u.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            _logService.LogWarning("Vui lòng tick chọn ít nhất một bản cập nhật Windows để cài đặt.");
+            return;
+        }
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = $"Đang tải và cài đặt {selected.Count} bản cập nhật Windows...";
+
+        try
+        {
+            var result = await _windowsUpdateService.InstallUpdatesAsync(selected).ConfigureAwait(false);
+            if (result.RebootRequired)
+            {
+                RebootRequired = true;
+            }
+            await ScanWindowsUpdatesAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi cài đặt Windows Update: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task InstallAllWindowsUpdatesAsync()
+    {
+        if (WindowsUpdates.Count == 0)
+        {
+            _logService.LogInfo("Không có bản cập nhật Windows nào để cài đặt.");
+            return;
+        }
+
+        if (!ConfirmAction("Xác nhận cài đặt Windows Update", $"Bạn có chắc chắn muốn tải và cài đặt toàn bộ {WindowsUpdates.Count} bản cập nhật Windows?"))
+        {
+            return;
+        }
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang cài đặt toàn bộ bản cập nhật Windows...";
+
+        try
+        {
+            var result = await _windowsUpdateService.InstallUpdatesAsync(WindowsUpdates).ConfigureAwait(false);
+            if (result.RebootRequired)
+            {
+                RebootRequired = true;
+            }
+            await ScanWindowsUpdatesAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi cài đặt Windows Update: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task ToggleHideWindowsUpdateAsync(WindowsUpdateItem update)
+    {
+        if (update == null || IsBusy) return;
+        IsBusy = true;
+
+        try
+        {
+            bool newHidden = !update.IsHidden;
+            bool ok = await _windowsUpdateService.SetUpdateHiddenAsync(update, newHidden).ConfigureAwait(false);
+            if (ok)
+            {
+                await ScanWindowsUpdatesAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi thay đổi trạng thái ẩn bản cập nhật: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task RestartComputerAsync()
+    {
+        if (ConfirmAction("Khởi động lại máy tính", "Bạn có chắc chắn muốn khởi động lại máy tính ngay bây giờ để hoàn tất quá trình cập nhật?"))
+        {
+            await _windowsUpdateService.RestartComputerAsync().ConfigureAwait(false);
+        }
+    }
+
+    // ==========================================
+    // TAB 3: GỠ BẢN CẬP NHẬT WINDOWS (WMI / WUSA / DISM)
+    // ==========================================
+
+    [RelayCommand]
+    public async Task LoadInstalledHotfixesAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang truy vấn danh sách bản vá KB đã cài đặt từ WMI...";
+
+        try
+        {
+            var hotfixes = await _hotfixService.GetInstalledHotfixesAsync().ConfigureAwait(false);
+            ExecuteOnUIThread(() =>
+            {
+                _allInstalledHotfixes.Clear();
+                _allInstalledHotfixes.AddRange(hotfixes);
+                ApplyHotfixFilter();
+            });
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi tải danh sách bản vá KB: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    partial void OnSearchHotfixFilterChanged(string value) => ApplyHotfixFilter();
+
+    private void ApplyHotfixFilter()
+    {
+        InstalledHotfixes.Clear();
+        var filtered = string.IsNullOrWhiteSpace(SearchHotfixFilter)
+            ? _allInstalledHotfixes
+            : _allInstalledHotfixes.Where(h =>
+                h.HotFixId.Contains(SearchHotfixFilter, StringComparison.OrdinalIgnoreCase) ||
+                h.Description.Contains(SearchHotfixFilter, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var h in filtered)
+        {
+            InstalledHotfixes.Add(h);
+        }
+    }
+
+    [RelayCommand]
+    public async Task UninstallHotfixAsync(InstalledHotfix hotfix)
+    {
+        if (hotfix == null) return;
+
+        bool confirm = ConfirmAction(
+            "Xác nhận gỡ bản vá KB",
+            $"Bạn có chắc chắn muốn gỡ bản cập nhật {hotfix.HotFixId} ({hotfix.Description})?\n\n" +
+            (AutoCreateRestorePoint ? "✓ Sẽ tự động tạo Điểm phục hồi hệ thống trước khi gỡ.\n" : "") +
+            (AutoBlockReinstall ? "✓ Sẽ tự động Ẩn KB này để ngăn Windows tự cài lại." : ""));
+
+        if (!confirm) return;
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = $"Đang gỡ bỏ bản cập nhật {hotfix.HotFixId}...";
+
+        try
+        {
+            var result = await _hotfixService.UninstallHotfixAsync(
+                hotfix.NumericKb,
+                AutoCreateRestorePoint,
+                AutoBlockReinstall).ConfigureAwait(false);
+
+            if (result.ExitCode == 0 || result.ExitCode == 3010)
+            {
+                if (result.ExitCode == 3010)
+                {
+                    RebootRequired = true;
+                }
+                await LoadInstalledHotfixesAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError($"Lỗi gỡ bỏ {hotfix.HotFixId}: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadDismPackagesAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang quét danh sách các gói hệ thống qua DISM...";
+
+        try
+        {
+            var packages = await _hotfixService.GetDismPackagesAsync().ConfigureAwait(false);
+            ExecuteOnUIThread(() =>
+            {
+                DismPackages.Clear();
+                foreach (var p in packages)
+                {
+                    DismPackages.Add(p);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi quét gói DISM: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task RemoveDismPackageAsync(DismPackage package)
+    {
+        if (package == null) return;
+
+        bool confirm = ConfirmAction(
+            "CẢNH BÁO: Gỡ gói hệ thống DISM",
+            $"Gỡ gói hệ thống qua DISM có thể ảnh hưởng đến tính ổn định của Windows.\n\n" +
+            $"Bạn có chắc chắn muốn gỡ bỏ gói sau:\n{package.PackageName}?");
+
+        if (!confirm) return;
+
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = $"Đang gỡ gói DISM: {package.PackageName}...";
+
+        try
+        {
+            var result = await _hotfixService.RemoveDismPackageAsync(package.PackageName).ConfigureAwait(false);
+            if (result.Succeeded)
+            {
+                await LoadDismPackagesAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi gỡ gói DISM: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task CreateRestorePointAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        StatusText = "Đang tạo điểm phục hồi hệ thống...";
+
+        try
+        {
+            await _hotfixService.CreateRestorePointAsync("WinUpdateManager Điểm phục hồi thủ công").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi tạo Restore Point: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
         }
     }
 

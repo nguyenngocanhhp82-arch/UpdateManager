@@ -204,50 +204,257 @@
             <!-- TAB 2: WINDOWS UPDATE                      -->
             <!-- ========================================== -->
             <TabItem Header="Windows Update">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <!-- Banner / Reboot Banner -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Main Updates Card -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="Cập nhật hệ điều hành Windows" FontSize="16" FontWeight="SemiBold" Foreground="#111827" />
-                            <TextBlock Text="Quét, tải và cài đặt các bản vá chất lượng và bảo mật từ Windows Update Agent." FontSize="12" Foreground="#6B7280" Margin="0,4,0,16" />
-                        </StackPanel>
+                    <!-- REBOOT REQUIRED BANNER (if needed) -->
+                    <Border Grid.Row="0" Background="#FEF2F2" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,0,0,10" Visibility="{Binding RebootRequired, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: WindowsUpdateService (COM Microsoft.Update.Session)." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="⚠️ CẦN KHỞI ĐỘNG LẠI MÁY TÍNH" FontWeight="Bold" FontSize="13" Foreground="#B91C1C" />
+                                <TextBlock Text="Các bản vá Windows Update đã cài đặt xong. Vui lòng khởi động lại để hoàn tất cấu hình hệ thống." FontSize="12" Foreground="#7F1D1D" Margin="0,2,0,0" />
                             </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
+
+                            <Button Grid.Column="1" Content="Khởi động lại ngay" Style="{StaticResource DangerButton}" Command="{Binding RestartComputerCommand}" Padding="12,6" />
+                        </Grid>
+                    </Border>
+
+                    <!-- MAIN WINDOWS UPDATE CARD -->
+                    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Toolbar -->
+                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding WindowsUpdateSummary}" FontSize="13" FontWeight="SemiBold" Foreground="#111827" />
+                                    <CheckBox Content="Xem danh sách các bản cập nhật đã ẩn" IsChecked="{Binding ShowHiddenWindowsUpdates}" VerticalAlignment="Center" Margin="0,4,0,0" FontSize="12" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Content="🔍 Quét Windows Update" Style="{StaticResource SecondaryButton}" Command="{Binding ScanWindowsUpdatesCommand}" Margin="0,0,6,0" />
+                                    <Button Content="Cài đặt đã chọn" Command="{Binding InstallSelectedWindowsUpdatesCommand}" Margin="0,0,6,0" />
+                                    <Button Content="Cài đặt tất cả" Command="{Binding InstallAllWindowsUpdatesCommand}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Windows Updates List -->
+                            <ListView Grid.Row="1" ItemsSource="{Binding WindowsUpdates}" BorderBrush="#E5E7EB">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Chọn" Width="45">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Tiêu đề bản cập nhật" Width="420">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Mã KB" Width="100" DisplayMemberBinding="{Binding KbArticleId}" />
+                                        <GridViewColumn Header="Phân loại" Width="90" DisplayMemberBinding="{Binding Category}" />
+                                        <GridViewColumn Header="Dung lượng" Width="100" DisplayMemberBinding="{Binding SizeDisplay}" />
+                                        <GridViewColumn Header="Thao tác" Width="120">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{Binding IsHidden, Converter={x:Null}}" Style="{StaticResource SecondaryButton}" Command="{Binding DataContext.ToggleHideWindowsUpdateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="6,3" FontSize="11">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="3" Padding="6,2">
+                                                                    <TextBlock FontSize="11">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Text" Value="Ẩn bản vá" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsHidden}" Value="True">
+                                                                                        <Setter Property="Text" Value="Bỏ ẩn" />
+                                                                                        <Setter Property="Foreground" Value="#059669" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                              
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </Grid>
             </TabItem>
 
             <!-- ========================================== -->
             <!-- TAB 3: GỠ BẢN CẬP NHẬT WINDOWS             -->
             <!-- ========================================== -->
             <TabItem Header="Gỡ bản cập nhật Windows">
-                <Border Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Margin="0,8,0,0" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <!-- Top Options Card -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Installed Hotfixes / DISM Table -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="Gỡ bỏ bản vá lỗi và Rollback Windows" FontSize="16" FontWeight="SemiBold" Foreground="#111827" />
-                            <TextBlock Text="Liệt kê danh sách bản vá KB đã cài đặt, hỗ trợ gỡ qua WUSA/DISM và tạo điểm phục hồi hệ thống." FontSize="12" Foreground="#6B7280" Margin="0,4,0,16" />
-                        </StackPanel>
+                    <!-- TOP OPTIONS CARD -->
+                    <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="16,12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="20">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock Text="Sẵn sàng cho Giai đoạn 3: HotfixService, gỡ KB và tự động ẩn để chặn cài lại." FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" />
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <CheckBox Content="Tự động tạo Điểm phục hồi hệ thống (Restore Point) trước khi gỡ" IsChecked="{Binding AutoCreateRestorePoint}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Margin="0,0,16,0" />
+                                    <CheckBox Content="Chặn cài lại (Tự động Ẩn bản vá trên Windows Update)" IsChecked="{Binding AutoBlockReinstall}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Content="🛡 Tạo Restore Point thủ công" Style="{StaticResource SecondaryButton}" Command="{Binding CreateRestorePointCommand}" />
+                            </Grid>
+
+                            <!-- View Mode Selector -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="Chế độ xem:" VerticalAlignment="Center" FontSize="12" Foreground="#4B5563" Margin="0,0,10,0" />
+                                <RadioButton Content="Danh sách bản vá KB (WMI QuickFixEngineering)" IsChecked="{Binding IsDismMode, Converter={StaticResource InverseBooleanConverter}}" VerticalAlignment="Center" Margin="0,0,14,0" FontSize="12" />
+                                <RadioButton Content="Gói hệ thống nâng cao (DISM Packages)" IsChecked="{Binding IsDismMode}" VerticalAlignment="Center" FontSize="12" />
                             </StackPanel>
-                        </Border>
-                    </Grid>
-                </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- WMI HOTFIX VIEW (Default) -->
+                    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="14" Visibility="{Binding IsDismMode, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Toolbar -->
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Tìm kiếm bản vá:" VerticalAlignment="Center" FontSize="12" Foreground="#4B5563" Margin="0,0,6,0" />
+                                    <TextBox Text="{Binding SearchHotfixFilter, UpdateSourceTrigger=PropertyChanged}" Width="200" Height="26" VerticalContentAlignment="Center" Padding="4,2" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="🔄 Tải lại danh sách KB" Style="{StaticResource SecondaryButton}" Command="{Binding LoadInstalledHotfixesCommand}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Installed KBs List -->
+                            <ListView Grid.Row="1" ItemsSource="{Binding InstalledHotfixes}" BorderBrush="#E5E7EB">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Mã KB" Width="130">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding HotFixId}" FontWeight="Bold" Foreground="#1E40AF" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Mô tả bản vá" Width="280" DisplayMemberBinding="{Binding Description}" />
+                                        <GridViewColumn Header="Ngày cài đặt" Width="140" DisplayMemberBinding="{Binding InstalledOn}" />
+                                        <GridViewColumn Header="Cài bởi" Width="140" DisplayMemberBinding="{Binding InstalledBy}" />
+                                        <GridViewColumn Header="Thao tác" Width="130">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="Gỡ bỏ" Style="{StaticResource DangerButton}" Command="{Binding DataContext.UninstallHotfixCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,3" FontSize="11" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+
+                    <!-- DISM PACKAGES VIEW (Advanced) -->
+                    <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="14" Visibility="{Binding IsDismMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Alert & Toolbar -->
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Gợi ý: Dùng DISM để gỡ các bản Cumulative Update (RollupFix) mà wusa không gỡ được." FontSize="12" Foreground="#B45309" VerticalAlignment="Center" />
+
+                                <Button Grid.Column="1" Content="🔍 Quét gói DISM" Style="{StaticResource SecondaryButton}" Command="{Binding LoadDismPackagesCommand}" />
+                            </Grid>
+
+                            <!-- DISM Packages List -->
+                            <ListView Grid.Row="1" ItemsSource="{Binding DismPackages}" BorderBrush="#E5E7EB">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Tên gói hệ thống (Package Identity)" Width="460">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding PackageName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Trạng thái" Width="100" DisplayMemberBinding="{Binding State}" />
+                                        <GridViewColumn Header="Loại phát hành" Width="120" DisplayMemberBinding="{Binding ReleaseType}" />
+                                        <GridViewColumn Header="Thời gian cài" Width="140" DisplayMemberBinding="{Binding InstallTime}" />
+                                        <GridViewColumn Header="Thao tác" Width="120">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="Gỡ gói DISM" Style="{StaticResource DangerButton}" Command="{Binding DataContext.RemoveDismPackageCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Padding="8,3" FontSize="11" />
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </Border>
+                </Grid>
             </TabItem>
 
             <!-- ========================================== -->
