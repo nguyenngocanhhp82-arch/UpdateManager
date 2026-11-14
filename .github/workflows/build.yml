@@ -1,0 +1,109 @@
+name: build-release
+
+on:
+  push:
+    branches: [ "**" ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Lấy số phiên bản từ tag
+        id: ver
+        shell: pwsh
+        run: |
+          $v = '${{ github.ref_name }}'
+          if ($v -like 'v*') { $v = $v.Substring(1) } else { $v = '1.0.0' }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Khôi phục dependencies & chạy Unit Tests
+        run: dotnet test WinUpdateManager.sln -c Release --verbosity normal
+
+      - name: Đóng gói 1 file .exe duy nhất (Single-File Self-Contained)
+        run: >
+          dotnet publish src/WinUpdateManager.App/WinUpdateManager.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishTrimmed=false
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish
+
+      - name: Kiểm tra khởi động trên máy sạch (Smoke test --selftest)
+        shell: pwsh
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          Write-Host "Running smoke test: WinUpdateManager.App.exe --selftest"
+          $proc = Start-Process -FilePath "publish/WinUpdateManager.App.exe" -ArgumentList "--selftest" -PassThru -NoNewWindow
+          $finished = $proc.WaitForExit(30000)
+          if (-not $finished) {
+            $proc.Kill()
+            Write-Error "WinUpdateManager.App.exe --selftest TIMED OUT after 30 seconds!"
+            if (Test-Path "$env:ProgramData\WinUpdateManager\startup-error.log") {
+              Write-Host "=== STARTUP ERROR LOG ==="
+              Get-Content "$env:ProgramData\WinUpdateManager\startup-error.log"
+            }
+            exit 1
+          }
+          $code = $proc.ExitCode
+          Write-Host "WinUpdateManager.App.exe finished with ExitCode: $code"
+          if ($code -ne 0) {
+            Write-Error "WinUpdateManager.App.exe --selftest FAILED with exit code $code!"
+            if (Test-Path "$env:ProgramData\WinUpdateManager\startup-error.log") {
+              Write-Host "=== STARTUP ERROR LOG ==="
+              Get-Content "$env:ProgramData\WinUpdateManager\startup-error.log"
+            }
+            exit 1
+          }
+          Write-Host "Smoke test PASSED successfully!"
+
+      - name: Đóng gói ZIP Portable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path publish/zip -Force | Out-Null
+          Copy-Item "publish/WinUpdateManager.App.exe" -Destination "publish/WinUpdateManager.exe"
+          Compress-Archive -Path "publish/WinUpdateManager.exe" -DestinationPath "publish/zip/WinUpdateManager-v${{ steps.ver.outputs.version }}-win-x64.zip" -Force
+
+      - name: Upload Artifact .exe & .zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinUpdateManager-v${{ steps.ver.outputs.version }}-win-x64
+          path: |
+            publish/WinUpdateManager.exe
+            publish/zip/*.zip
+
+      - name: Tạo bản phát hành GitHub Release (chỉ khi có tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            publish/WinUpdateManager.exe
+            publish/zip/*.zip
