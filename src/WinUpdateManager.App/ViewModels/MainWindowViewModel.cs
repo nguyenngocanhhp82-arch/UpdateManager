@@ -478,6 +478,9 @@ public partial class MainWindowViewModel : ObservableObject
         if (IsBusy) return;
         IsBusy = true;
 
+        int successCount = 0;
+        int failCount = 0;
+
         try
         {
             for (int i = 0; i < selected.Count; i++)
@@ -486,10 +489,34 @@ public partial class MainWindowViewModel : ObservableObject
                 StatusText = $"Đang cập nhật [{i + 1}/{selected.Count}]: {pkg.Name}...";
                 _logService.LogInfo($"--- [{i + 1}/{selected.Count}] Bắt đầu cập nhật: {pkg.Name} [{pkg.Id}] ---");
 
-                await _wingetService.UpgradePackageAsync(pkg.Id).ConfigureAwait(false);
+                try
+                {
+                    var result = await _wingetService.UpgradePackageAsync(pkg.Id).ConfigureAwait(false);
+                    if (result.Succeeded || result.ExitCode == 3010)
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    _logService.LogError($"Lỗi cập nhật [{pkg.Name}]: {ex.Message}");
+                }
             }
 
-            _logService.LogSuccess("Đã hoàn tất quá trình cập nhật các ứng dụng đã chọn.");
+            if (failCount == 0)
+            {
+                _logService.LogSuccess($"Đã hoàn tất cập nhật tất cả {successCount} ứng dụng đã chọn.");
+            }
+            else
+            {
+                _logService.LogWarning($"Quá trình cập nhật hoàn tất: {successCount} thành công, {failCount} gặp sự cố. Xem chi tiết trong nhật ký.");
+            }
+
             await ScanUpgradesAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -523,16 +550,45 @@ public partial class MainWindowViewModel : ObservableObject
         if (IsBusy) return;
         IsBusy = true;
 
+        int prioSuccess = 0;
+        int prioFail = 0;
+
         try
         {
             for (int i = 0; i < priorityList.Count; i++)
             {
                 var pkg = priorityList[i];
                 StatusText = $"Đang cập nhật nhóm ưu tiên [{i + 1}/{priorityList.Count}]: {pkg.Name}...";
-                await _wingetService.UpgradePackageAsync(pkg.Id).ConfigureAwait(false);
+                _logService.LogInfo($"--- [{i + 1}/{priorityList.Count}] Cập nhật ưu tiên: {pkg.Name} [{pkg.Id}] ---");
+
+                try
+                {
+                    var result = await _wingetService.UpgradePackageAsync(pkg.Id).ConfigureAwait(false);
+                    if (result.Succeeded || result.ExitCode == 3010)
+                    {
+                        prioSuccess++;
+                    }
+                    else
+                    {
+                        prioFail++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    prioFail++;
+                    _logService.LogError($"Lỗi cập nhật [{pkg.Name}]: {ex.Message}");
+                }
             }
 
-            _logService.LogSuccess("Hoàn thành cập nhật nhóm ứng dụng ưu tiên.");
+            if (prioFail == 0)
+            {
+                _logService.LogSuccess($"Hoàn thành cập nhật {prioSuccess} ứng dụng ưu tiên.");
+            }
+            else
+            {
+                _logService.LogWarning($"Cập nhật nhóm ưu tiên hoàn tất: {prioSuccess} thành công, {prioFail} gặp sự cố.");
+            }
+
             await ScanUpgradesAsync().ConfigureAwait(false);
         }
         catch (Exception ex)

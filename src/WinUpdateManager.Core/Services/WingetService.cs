@@ -13,10 +13,10 @@ public partial class WingetService : IWingetService
     public const string WhatsAppStoreId = "9NKSQGP7F2NH";
     public const string WhatsAppWin32Id = "WhatsApp.WhatsApp";
 
-    [GeneratedRegex(@"^[A-Za-z0-9._\\{}\-]+$", RegexOptions.Compiled)]
+    [GeneratedRegex(@"^[A-Za-z0-9._\\{}\-+()#@/:\s~]+$", RegexOptions.Compiled)]
     private static partial Regex PackageIdValidationRegex();
 
-    [GeneratedRegex(@"^[A-Za-z0-9._\-+]+$", RegexOptions.Compiled)]
+    [GeneratedRegex(@"^[A-Za-z0-9._\-+()#@/:\s~]+$", RegexOptions.Compiled)]
     private static partial Regex VersionValidationRegex();
 
     public WingetService(

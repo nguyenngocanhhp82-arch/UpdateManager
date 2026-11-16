@@ -214,4 +214,24 @@ Microsoft Teams                   Microsoft.Teams        <unknown>        1.6.00
         bool isExcluded = wingetService.IsExcludedPackage(id, name);
         isExcluded.Should().Be(expectedExcluded);
     }
+
+    [Theory]
+    [InlineData("Microsoft.VCRedist.2015+.x64")]
+    [InlineData("Microsoft.VCRedist.2015+.x86")]
+    [InlineData("Notepad++.Notepad++")]
+    [InlineData("Microsoft.DotNet.SDK.8")]
+    [InlineData("{26A24AE4-039D-4CA4-87B4-2F32180321F0}")]
+    [InlineData("Microsoft Visual C++ 2015-2022 Redistributable (x64)")]
+    [InlineData("Google.Chrome")]
+    [InlineData("9NKSQGP7F2NH")]
+    public async Task UpgradePackageAsync_AcceptsValidComplexPackageIds(string packageId)
+    {
+        var config = new ConfigService();
+        var runner = new ProcessRunner(new LogService());
+        var wingetService = new WingetService(runner, new LogService(), config);
+
+        // Should not throw ArgumentException for valid package IDs
+        var act = () => wingetService.UpgradePackageAsync(packageId);
+        await act.Should().NotThrowAsync<ArgumentException>();
+    }
 }
