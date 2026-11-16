@@ -112,6 +112,7 @@ public static class Program
         var scheduleService = host.Services.GetRequiredService<IScheduleService>();
         var wingetService = host.Services.GetRequiredService<IWingetService>();
         var policyService = host.Services.GetRequiredService<IPolicyService>();
+        var configService = host.Services.GetRequiredService<IConfigService>();
         var logPath = scheduleService.GetScheduleLogPath();
 
         void AppendAutoUpgradeLog(string text)
@@ -136,15 +137,57 @@ public static class Program
 
         try
         {
-            // 1. WhatsApp Fast Update
-            AppendAutoUpgradeLog("Đang kiểm tra và cập nhật siêu tốc WhatsApp...");
-            var whatsAppTask = wingetService.FastUpdateWhatsAppAsync().GetAwaiter().GetResult();
-            AppendAutoUpgradeLog($"Kết quả cập nhật WhatsApp: ExitCode {whatsAppTask.ExitCode} (Thành công: {whatsAppTask.Succeeded})");
+            var config = configService.LoadConfigAsync().GetAwaiter().GetResult();
+            var targetAppIds = config.ScheduledAppIds ?? new List<string> { "9NKSQGP7F2NH", "WhatsApp.WhatsApp" };
 
-            // 2. Scheduled auto-upgrade is configured strictly for WhatsApp to prevent unwanted updates on other apps
-            AppendAutoUpgradeLog("Hoàn tất tác vụ theo lịch: Chỉ cập nhật WhatsApp, bảo vệ an toàn cho các ứng dụng hệ thống khác.");
+            AppendAutoUpgradeLog($"Số lượng ứng dụng được cấu hình chạy theo lịch: {targetAppIds.Count}");
 
-            // 3. Guarantee wuauserv remains locked if it was locked initially
+            int successCount = 0;
+            int failCount = 0;
+
+            foreach (var appId in targetAppIds)
+            {
+                if (string.IsNullOrWhiteSpace(appId)) continue;
+
+                // Safety: Skip excluded sensitive apps (Office / Zalo)
+                if (wingetService.IsExcludedPackage(appId))
+                {
+                    AppendAutoUpgradeLog($"[BỎ QUA] Ứng dụng nhạy cảm [{appId}] được bảo vệ khỏi cập nhật tự động.");
+                    continue;
+                }
+
+                // WhatsApp handling: Use FastUpdateWhatsAppAsync (Supports offline cache & direct store without account)
+                if (appId.Equals(WingetService.WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+                    appId.Equals(WingetService.WhatsAppWin32Id, StringComparison.OrdinalIgnoreCase) ||
+                    appId.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                {
+                    AppendAutoUpgradeLog($"Đang thực hiện cập nhật siêu tốc WhatsApp [{appId}]...");
+                    var waRes = wingetService.FastUpdateWhatsAppAsync().GetAwaiter().GetResult();
+                    AppendAutoUpgradeLog($"Kết quả cập nhật WhatsApp: ExitCode {waRes.ExitCode} (Thành công: {waRes.Succeeded})");
+                    if (waRes.Succeeded || waRes.ExitCode == 3010) successCount++;
+                    else failCount++;
+                }
+                else
+                {
+                    AppendAutoUpgradeLog($"Đang cập nhật ứng dụng [{appId}]...");
+                    try
+                    {
+                        var appRes = wingetService.UpgradePackageAsync(appId).GetAwaiter().GetResult();
+                        AppendAutoUpgradeLog($"Kết quả cập nhật [{appId}]: ExitCode {appRes.ExitCode} (Thành công: {appRes.Succeeded})");
+                        if (appRes.Succeeded || appRes.ExitCode == 3010) successCount++;
+                        else failCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failCount++;
+                        AppendAutoUpgradeLog($"Lỗi cập nhật [{appId}]: {ex.Message}");
+                    }
+                }
+            }
+
+            AppendAutoUpgradeLog($"Tổng kết lịch nâng cấp: {successCount} ứng dụng thành công, {failCount} ứng dụng gặp sự cố.");
+
+            // Guarantee wuauserv remains locked if it was locked initially
             if (wasWuauservDisabled)
             {
                 policyService.SetWuauservDisabledAsync(true).GetAwaiter().GetResult();

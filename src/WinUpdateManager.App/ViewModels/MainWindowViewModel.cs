@@ -63,6 +63,11 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isScheduleLogModalOpen;
 
+    [ObservableProperty]
+    private string _scheduledAppsSummaryText = "Chưa tải danh sách ứng dụng.";
+
+    public ObservableCollection<WingetPackage> ScheduledApps { get; } = new();
+
     public ObservableCollection<WingetPackage> UpgradableApps { get; } = new();
     private readonly List<WingetPackage> _allUpgradableApps = new();
 
@@ -372,6 +377,14 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     partial void OnSearchUpgradeFilterChanged(string value) => ApplyUpgradeFilter();
+
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        if (value == 4 && ScheduledApps.Count == 0)
+        {
+            _ = LoadScheduledAppsAsync();
+        }
+    }
 
     private void ApplyUpgradeFilter()
     {
@@ -1258,8 +1271,26 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
+            // 1. Lưu danh sách ứng dụng được chọn vào cấu hình (AppConfig)
+            var selectedIds = ScheduledApps.Where(p => p.IsSelected)
+                                           .Select(p => p.Id)
+                                           .Distinct(StringComparer.OrdinalIgnoreCase)
+                                           .ToList();
+
+            // Nếu người dùng chưa chọn ứng dụng nào, mặc định chỉ giữ WhatsApp
+            if (selectedIds.Count == 0)
+            {
+                selectedIds.Add(WingetService.WhatsAppStoreId);
+            }
+
+            _configService.CurrentConfig.ScheduledAppIds = selectedIds;
+            await _configService.SaveConfigAsync(_configService.CurrentConfig).ConfigureAwait(false);
+
+            // 2. Tạo hoặc cập nhật tác vụ trong Windows Task Scheduler
             var result = await _scheduleService.CreateOrUpdateScheduleAsync(ScheduleModel).ConfigureAwait(false);
-            await LoadScheduleStatusAsync();
+            await LoadScheduleStatusAsync().ConfigureAwait(false);
+
+            _logService.LogSuccess($"Đã lưu lịch tự động thành công! Đã cấu hình {selectedIds.Count} ứng dụng được tự động nâng cấp.");
         }
         catch (Exception ex)
         {
@@ -1270,6 +1301,120 @@ public partial class MainWindowViewModel : ObservableObject
             IsBusy = false;
             StatusText = "Sẵn sàng";
         }
+    }
+
+    [RelayCommand]
+    public async Task LoadScheduledAppsAsync()
+    {
+        try
+        {
+            StatusText = "Đang tải danh sách ứng dụng cho lịch tự động...";
+            var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
+            var scheduledIds = new HashSet<string>(config.ScheduledAppIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+
+            var installed = await _wingetService.GetInstalledAppsAsync().ConfigureAwait(false);
+
+            ExecuteOnUIThread(() =>
+            {
+                ScheduledApps.Clear();
+
+                // 1. Luôn đưa WhatsApp lên hàng đầu (mặc định chọn nếu danh sách trống)
+                bool isWaSelected = scheduledIds.Contains(WingetService.WhatsAppStoreId) ||
+                                    scheduledIds.Contains(WingetService.WhatsAppWin32Id) ||
+                                    scheduledIds.Count == 0;
+
+                var waStore = new WingetPackage
+                {
+                    Name = "WhatsApp Desktop",
+                    Id = WingetService.WhatsAppStoreId,
+                    CurrentVersion = WhatsAppStatus?.CurrentVersion ?? "Đã cài đặt",
+                    Source = "msstore",
+                    IsSelected = isWaSelected,
+                    WarningNote = "⚡ WhatsApp - Cập nhật siêu tốc 3 giây (Hỗ trợ Offline/LAN)"
+                };
+                ScheduledApps.Add(waStore);
+
+                // 2. Các ứng dụng khác trên máy
+                foreach (var app in installed)
+                {
+                    if (app.Id.Equals(WingetService.WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+                        app.Id.Equals(WingetService.WhatsAppWin32Id, StringComparison.OrdinalIgnoreCase) ||
+                        app.Name.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var item = new WingetPackage
+                    {
+                        Name = app.Name,
+                        Id = app.Id,
+                        CurrentVersion = app.CurrentVersion,
+                        Source = app.Source,
+                        IsSelected = scheduledIds.Contains(app.Id)
+                    };
+
+                    if (_wingetService.IsExcludedPackage(app.Id, app.Name))
+                    {
+                        item.IsExcluded = true;
+                        item.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ";
+                    }
+                    else
+                    {
+                        item.WarningNote = "Cập nhật qua winget";
+                    }
+
+                    ScheduledApps.Add(item);
+                }
+
+                UpdateScheduledAppsSummary();
+            });
+        }
+        catch (Exception ex)
+        {
+            _logService.LogWarning("Không thể tải danh sách ứng dụng cho lịch: " + ex.Message);
+        }
+        finally
+        {
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public void SelectAllScheduledApps()
+    {
+        foreach (var app in ScheduledApps)
+        {
+            if (!app.IsExcluded) app.IsSelected = true;
+        }
+        UpdateScheduledAppsSummary();
+    }
+
+    [RelayCommand]
+    public void DeselectAllScheduledApps()
+    {
+        foreach (var app in ScheduledApps)
+        {
+            app.IsSelected = false;
+        }
+        UpdateScheduledAppsSummary();
+    }
+
+    [RelayCommand]
+    public void ResetScheduledAppsToDefault()
+    {
+        foreach (var app in ScheduledApps)
+        {
+            app.IsSelected = app.Id.Equals(WingetService.WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+                             app.Id.Equals(WingetService.WhatsAppWin32Id, StringComparison.OrdinalIgnoreCase) ||
+                             app.Name.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase);
+        }
+        UpdateScheduledAppsSummary();
+    }
+
+    public void UpdateScheduledAppsSummary()
+    {
+        int selectedCount = ScheduledApps.Count(p => p.IsSelected);
+        ScheduledAppsSummaryText = $"Đã tích chọn {selectedCount} / {ScheduledApps.Count} ứng dụng để tự động cập nhật theo lịch.";
     }
 
     [RelayCommand]

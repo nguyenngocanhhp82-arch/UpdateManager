@@ -590,6 +590,7 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
                                 <!-- Header -->
@@ -638,8 +639,73 @@
                                     </Grid>
                                 </Border>
 
+                                <!-- App Selection for Scheduled Auto-Upgrade -->
+                                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header & Toolbar -->
+                                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="📋 Danh sách ứng dụng áp dụng theo lịch:" FontWeight="Bold" FontSize="13" Foreground="#1E3A8A" />
+                                                <TextBlock Text="Tích chọn những ứng dụng bạn muốn tự động nâng cấp khi đến giờ hẹn (những ứng dụng không được tích sẽ không bao giờ tự động cập nhật)." FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Chọn tất cả" Style="{StaticResource SecondaryButton}" Command="{Binding SelectAllScheduledAppsCommand}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                                <Button Content="Bỏ chọn hết" Style="{StaticResource SecondaryButton}" Command="{Binding DeselectAllScheduledAppsCommand}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                                <Button Content="Chỉ chọn WhatsApp" Style="{StaticResource SecondaryButton}" Command="{Binding ResetScheduledAppsToDefaultCommand}" Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                                <Button Content="🔄 Tải lại" Style="{StaticResource SecondaryButton}" Command="{Binding LoadScheduledAppsCommand}" Padding="8,3" FontSize="11" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Selection summary badge -->
+                                        <TextBlock Grid.Row="1" Text="{Binding ScheduledAppsSummaryText}" FontSize="11" Foreground="#047857" FontWeight="SemiBold" Margin="0,0,0,6" />
+
+                                        <!-- Scheduled Apps ListView with Checkbox -->
+                                        <ListView Grid.Row="2" ItemsSource="{Binding ScheduledApps}" MaxHeight="220" BorderBrush="#E5E7EB">
+                                            <ListView.View>
+                                                <GridView>
+                                                    <GridViewColumn Header="Bật lịch" Width="65">
+                                                        <GridViewColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </DataTemplate>
+                                                        </GridViewColumn.CellTemplate>
+                                                    </GridViewColumn>
+                                                    <GridViewColumn Header="Tên ứng dụng" Width="220">
+                                                        <GridViewColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            </DataTemplate>
+                                                        </GridViewColumn.CellTemplate>
+                                                    </GridViewColumn>
+                                                    <GridViewColumn Header="Mã định danh (ID)" Width="200" DisplayMemberBinding="{Binding Id}" />
+                                                    <GridViewColumn Header="Phiên bản" Width="110" DisplayMemberBinding="{Binding CurrentVersion}" />
+                                                    <GridViewColumn Header="Ghi chú trạng thái" Width="280">
+                                                        <GridViewColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding WarningNote}" FontSize="11" Foreground="#B45309" TextTrimming="CharacterEllipsis" />
+                                                            </DataTemplate>
+                                                        </GridViewColumn.CellTemplate>
+                                                    </GridViewColumn>
+                                                </GridView>
+                                            </ListView.View>
+                                        </ListView>
+                                    </Grid>
+                                </Border>
+
                                 <!-- Task Status Overview -->
-                                <Border Grid.Row="2" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12,8">
+                                <Border Grid.Row="3" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12,8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -671,7 +737,7 @@
                                 </Border>
 
                                 <!-- Auto-upgrade Log Modal / Viewer (if open) -->
-                                <Border Grid.Row="3" Background="#FEF9C3" BorderBrush="#CA8A04" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,10,0,0" Visibility="{Binding IsScheduleLogModalOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Border Grid.Row="4" Background="#FEF9C3" BorderBrush="#CA8A04" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,10,0,0" Visibility="{Binding IsScheduleLogModalOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />

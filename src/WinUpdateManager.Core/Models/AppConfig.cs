@@ -9,6 +9,13 @@ public class AppConfig
         "Google.Chrome"       // Google Chrome
     };
 
+    // Danh sách ứng dụng được người dùng tích chọn để tự động nâng cấp theo lịch (Scheduled Task)
+    public List<string> ScheduledAppIds { get; set; } = new()
+    {
+        "9NKSQGP7F2NH",       // WhatsApp Microsoft Store
+        "WhatsApp.WhatsApp"  // WhatsApp Desktop Win32
+    };
+
     // Danh sách ứng dụng nhạy cảm cần loại trừ khỏi cập nhật tự động
     // (Office dùng Click-to-Run riêng, Zalo cập nhật per-user khi khởi động)
     public List<string> ExcludedAppIds { get; set; } = new()
