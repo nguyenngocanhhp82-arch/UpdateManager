@@ -95,17 +95,47 @@ public partial class HotfixService : IHotfixService
             await CreateRestorePointAsync($"Trước khi gỡ KB{digits}", cancellationToken).ConfigureAwait(false);
         }
 
-        // 2. Execute WUSA
-        _logService.LogInfo($"Đang thực thi lệnh: wusa.exe /uninstall /kb:{digits} /quiet /norestart...");
-        var args = new[]
-        {
-            "/uninstall",
-            $"/kb:{digits}",
-            "/quiet",
-            "/norestart"
-        };
+        // 2. Execute Removal (DISM first, fallback to WUSA without /quiet)
+        ProcessResult? result = null;
 
-        var result = await _processRunner.RunAsync("wusa.exe", args, cancellationToken).ConfigureAwait(false);
+        if (OperatingSystem.IsWindows())
+        {
+            // 2.1 Attempt silent DISM package removal first (Avoids Exit Code 87 on Windows 10/11)
+            try
+            {
+                _logService.LogInfo($"Đang kiểm tra gói hệ thống DISM tương ứng với KB{digits}...");
+                var dismPackages = await GetDismPackagesAsync(cancellationToken).ConfigureAwait(false);
+                var matchingPkg = dismPackages.FirstOrDefault(p =>
+                    p.PackageName.Contains(digits, StringComparison.OrdinalIgnoreCase));
+
+                if (matchingPkg != null)
+                {
+                    _logService.LogInfo($"Tìm thấy gói DISM tương ứng: {matchingPkg.PackageName}. Đang tiến hành gỡ bỏ tự động...");
+                    result = await RemoveDismPackageAsync(matchingPkg.PackageName, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.LogWarning($"Không thể gỡ qua DISM: {ex.Message}. Sẽ chuyển sang WUSA.");
+            }
+        }
+
+        // 2.2 Fallback to WUSA if DISM did not execute or did not succeed
+        if (result == null || (!result.Succeeded && result.ExitCode != 3010))
+        {
+            _logService.LogInfo($"Đang thực thi lệnh: wusa.exe /uninstall /kb:{digits} /norestart...");
+            // Lưu ý: Trên Windows 10 (1809+) và Windows 11, Microsoft đã loại bỏ tham số /quiet cho /uninstall.
+            // Truyền /quiet sẽ gây ra lỗi Exit code 87 (ERROR_INVALID_PARAMETER).
+            // Thực thi không kèm /quiet sẽ mở hộp thoại xác nhận chuẩn của Windows để gỡ thành công.
+            var args = new[]
+            {
+                "/uninstall",
+                $"/kb:{digits}",
+                "/norestart"
+            };
+
+            result = await _processRunner.RunAsync("wusa.exe", args, cancellationToken).ConfigureAwait(false);
+        }
 
         if (result.ExitCode == 0)
         {
@@ -281,6 +311,8 @@ public partial class HotfixService : IHotfixService
     {
         return exitCode switch
         {
+            87 => "Tham số không hợp lệ (Mã lỗi 87 - ERROR_INVALID_PARAMETER). Microsoft đã loại bỏ tùy chọn /quiet khi gỡ cập nhật qua WUSA trên Windows 10/11.",
+            unchecked((int)0x80070057) => "Tham số không hợp lệ (Mã lỗi 87). Microsoft đã loại bỏ tùy chọn /quiet khi gỡ cập nhật qua WUSA trên Windows 10/11.",
             unchecked((int)0x80240017) => "Bản cập nhật này không thể gỡ qua WUSA (thường là bản cập nhật tích lũy bắt buộc Cumulative Update). Bạn có thể thử gỡ gói RollupFix qua mục DISM.",
             unchecked((int)0x800f081f) => "Không tìm thấy nguồn hoặc gói cập nhật trên máy.",
             unchecked((int)0x80070005) => "Truy cập bị từ chối (cần quyền Administrator).",

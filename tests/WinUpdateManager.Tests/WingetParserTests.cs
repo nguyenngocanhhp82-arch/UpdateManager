@@ -153,11 +153,43 @@ Version
         versions[2].Should().Be("2.2402.1.0");
     }
 
+    [Fact]
+    public void ParseTable_WithUnknownVersionInStorePackage_ParsesCorrectly()
+    {
+        string sampleOutput = """
+Name                              Id                     Version          Available        Source
+-------------------------------------------------------------------------------------------------
+WhatsApp                          9NKSQGP7F2NH           <unknown>        2.2410.1.0       msstore
+Microsoft Teams                   Microsoft.Teams        <unknown>        1.6.00           winget
+2 upgrades available.
+""";
+
+        var packages = WingetParser.ParseTable(sampleOutput, hasAvailableColumn: true);
+
+        packages.Should().HaveCount(2);
+        packages[0].Name.Should().Be("WhatsApp");
+        packages[0].Id.Should().Be("9NKSQGP7F2NH");
+        packages[0].CurrentVersion.Should().Be("<unknown>");
+        packages[0].AvailableVersion.Should().Be("2.2410.1.0");
+        packages[0].Source.Should().Be("msstore");
+
+        packages[1].Name.Should().Be("Microsoft Teams");
+        packages[1].Id.Should().Be("Microsoft.Teams");
+        packages[1].CurrentVersion.Should().Be("<unknown>");
+        packages[1].AvailableVersion.Should().Be("1.6.00");
+    }
+
     [Theory]
     [InlineData(0, "Thành công.")]
     [InlineData(-1, "Tiến trình đã bị người dùng hủy.")]
     [InlineData(3010, "Cập nhật thành công, cần khởi động lại máy tính.")]
     [InlineData(1618, "Một tiến trình cài đặt khác đang chạy. Vui lòng đợi tiến trình đó kết thúc rồi thử lại.")]
+    [InlineData(unchecked((int)0x80190194), "404")]
+    [InlineData(unchecked((int)0x80190190), "400")]
+    [InlineData(87, "Mã lỗi 87")]
+    [InlineData(unchecked((int)0x80070057), "Mã lỗi 87")]
+    [InlineData(unchecked((int)0x8A150056), "tài khoản Microsoft")]
+    [InlineData(unchecked((int)0x8A150044), "Tải gói cài đặt thất bại")]
     public void WingetExitCode_MapsCodesToVietnamese(int code, string expectedSubstring)
     {
         string desc = WingetExitCode.GetDescription(code);

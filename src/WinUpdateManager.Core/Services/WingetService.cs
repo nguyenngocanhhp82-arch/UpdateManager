@@ -77,6 +77,22 @@ public partial class WingetService : IWingetService
                 p.IsExcluded = true;
                 p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
             }
+
+            // Fix empty or <unknown> current versions
+            if (string.IsNullOrWhiteSpace(p.CurrentVersion) ||
+                p.CurrentVersion.Equals("<unknown>", StringComparison.OrdinalIgnoreCase))
+            {
+                if (p.Id.Equals(WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                {
+                    string? ver = await GetInstalledAppxVersionAsync("*WhatsApp*", cancellationToken).ConfigureAwait(false);
+                    p.CurrentVersion = !string.IsNullOrWhiteSpace(ver) ? ver : "Đã cài đặt (Store)";
+                }
+                else
+                {
+                    p.CurrentVersion = "Chưa rõ (Store)";
+                }
+            }
         }
 
         _logService.LogSuccess($"Quét hoàn tất: Phát hiện {packages.Count} ứng dụng có bản cập nhật mới.");
@@ -118,6 +134,22 @@ public partial class WingetService : IWingetService
                 p.IsExcluded = true;
                 p.WarningNote = "⚠️ Ứng dụng nhạy cảm (Office/Zalo) - Khuyên dùng cập nhật nội bộ của app!";
             }
+
+            // Fix empty or <unknown> current versions
+            if (string.IsNullOrWhiteSpace(p.CurrentVersion) ||
+                p.CurrentVersion.Equals("<unknown>", StringComparison.OrdinalIgnoreCase))
+            {
+                if (p.Id.Equals(WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                {
+                    string? ver = await GetInstalledAppxVersionAsync("*WhatsApp*", cancellationToken).ConfigureAwait(false);
+                    p.CurrentVersion = !string.IsNullOrWhiteSpace(ver) ? ver : "Đã cài đặt (Store)";
+                }
+                else
+                {
+                    p.CurrentVersion = "Chưa rõ (Store)";
+                }
+            }
         }
 
         _logService.LogInfo($"Tìm thấy {packages.Count} ứng dụng đã cài đặt trên hệ thống.");
@@ -154,6 +186,15 @@ public partial class WingetService : IWingetService
     public async Task<ProcessResult> UpgradePackageAsync(string packageId, CancellationToken cancellationToken = default)
     {
         ValidatePackageId(packageId);
+
+        // Special handling for WhatsApp: Bypass Store account requirement and route through fast update
+        if (packageId.Equals(WhatsAppStoreId, StringComparison.OrdinalIgnoreCase) ||
+            packageId.Equals(WhatsAppWin32Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _logService.LogInfo("Phát hiện yêu cầu cập nhật WhatsApp: Kích hoạt quy trình cập nhật tối ưu không yêu cầu tài khoản...");
+            return await FastUpdateWhatsAppAsync(null, cancellationToken).ConfigureAwait(false);
+        }
+
         _logService.LogInfo($"Đang cập nhật ứng dụng [{packageId}]...");
 
         var args = new[]
@@ -162,11 +203,19 @@ public partial class WingetService : IWingetService
             "--id", packageId,
             "--exact",
             "--silent",
+            "--disable-interactivity",
             "--accept-package-agreements",
             "--accept-source-agreements"
         };
 
         var result = await _processRunner.RunAsync("winget", args, cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode == unchecked((int)0x80190194))
+        {
+            _logService.LogWarning($"Gói [{packageId}] trả về mã lỗi HTTP 404 (Không tìm thấy tệp cài trên server). " +
+                                  "Nếu là gói cũ như Microsoft Teams cổ điển, Microsoft đã ngừng phát hành link tải này. Vui lòng chuyển sang bản 'Microsoft Teams (Work or School)'.");
+        }
+
         LogProcessResult(result, $"Cập nhật ứng dụng [{packageId}]");
         return result;
     }
@@ -216,6 +265,7 @@ public partial class WingetService : IWingetService
             "upgrade",
             "--all",
             "--silent",
+            "--disable-interactivity",
             "--accept-package-agreements",
             "--accept-source-agreements"
         };
@@ -235,7 +285,8 @@ public partial class WingetService : IWingetService
             "uninstall",
             "--id", packageId,
             "--exact",
-            "--silent"
+            "--silent",
+            "--disable-interactivity"
         };
 
         var result = await _processRunner.RunAsync("winget", args, cancellationToken).ConfigureAwait(false);
@@ -257,6 +308,7 @@ public partial class WingetService : IWingetService
             "--exact",
             "--version", version,
             "--silent",
+            "--disable-interactivity",
             "--accept-package-agreements",
             "--accept-source-agreements"
         };
@@ -305,7 +357,29 @@ public partial class WingetService : IWingetService
         // Check if there is an offline cached package
         status.CachedInstallerPath = FindCachedWhatsAppInstaller();
 
-        // 1. Check Store package first
+        // 1. Check Store package via direct Appx query (Most reliable for Windows Store MSIX apps)
+        string? appxVersion = await GetInstalledAppxVersionAsync("*WhatsApp*", cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(appxVersion))
+        {
+            status.IsInstalled = true;
+            status.PackageId = WhatsAppStoreId;
+            status.PackageType = "Store";
+            status.CurrentVersion = appxVersion;
+            return status;
+        }
+
+        // 2. Check Win32 package via Registry
+        string? win32Version = GetInstalledWin32AppVersion("WhatsApp");
+        if (!string.IsNullOrWhiteSpace(win32Version))
+        {
+            status.IsInstalled = true;
+            status.PackageId = WhatsAppWin32Id;
+            status.PackageType = "Win32";
+            status.CurrentVersion = win32Version;
+            return status;
+        }
+
+        // 3. Fallback to winget list query
         try
         {
             var apps = await GetInstalledAppsAsync(WhatsAppStoreId, cancellationToken).ConfigureAwait(false);
@@ -315,13 +389,12 @@ public partial class WingetService : IWingetService
                 status.IsInstalled = true;
                 status.PackageId = WhatsAppStoreId;
                 status.PackageType = "Store";
-                status.CurrentVersion = storePkg.CurrentVersion;
+                status.CurrentVersion = CleanUnknownVersion(storePkg.CurrentVersion);
                 return status;
             }
         }
         catch { }
 
-        // 2. Check Win32 package
         try
         {
             var apps = await GetInstalledAppsAsync(WhatsAppWin32Id, cancellationToken).ConfigureAwait(false);
@@ -332,7 +405,7 @@ public partial class WingetService : IWingetService
                 status.IsInstalled = true;
                 status.PackageId = WhatsAppWin32Id;
                 status.PackageType = "Win32";
-                status.CurrentVersion = win32Pkg.CurrentVersion;
+                status.CurrentVersion = CleanUnknownVersion(win32Pkg.CurrentVersion);
                 return status;
             }
         }
@@ -345,44 +418,88 @@ public partial class WingetService : IWingetService
     {
         string? installerPath = customPackagePath;
 
+        // If a custom installer was supplied, copy it to the local cache and sync to LAN share
+        if (!string.IsNullOrWhiteSpace(installerPath) && File.Exists(installerPath))
+        {
+            try
+            {
+                string cacheDir = _configService.GetCacheDirectory();
+                Directory.CreateDirectory(cacheDir);
+                string destFile = Path.Combine(cacheDir, Path.GetFileName(installerPath));
+                if (!string.Equals(Path.GetFullPath(installerPath), Path.GetFullPath(destFile), StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(installerPath, destFile, overwrite: true);
+                    installerPath = destFile;
+                    _logService.LogInfo($"Đã lưu gói cài vào bộ nhớ đệm: {destFile}");
+                }
+                CopyCachedPackageToLan(cacheDir);
+            }
+            catch (Exception ex)
+            {
+                _logService.LogWarning("Không thể lưu gói vào bộ nhớ đệm: " + ex.Message);
+            }
+        }
+
         // 1. Check if an offline installer was supplied or is present in Cache/LAN
         if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
         {
             installerPath = FindCachedWhatsAppInstaller();
         }
 
-        // 2. If NO package found in Cache or LAN: AUTOMATICALLY DOWNLOAD IT!
-        if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
+        // 2. If package found in Cache or LAN -> Install directly offline in 3-5 seconds!
+        if (!string.IsNullOrWhiteSpace(installerPath) && File.Exists(installerPath))
         {
-            _logService.LogInfo("Chưa có gói cài đặt WhatsApp trong bộ nhớ đệm hoặc mạng LAN. Đang tự động tải về...");
-            var dlResult = await DownloadWhatsAppPackageAsync(cancellationToken).ConfigureAwait(false);
-            if (!dlResult.Succeeded)
+            _logService.LogInfo($"Tìm thấy gói cài đặt offline: {Path.GetFileName(installerPath)}. Bắt đầu cập nhật siêu tốc (3-5 giây)...");
+
+            if (installerPath.EndsWith(".msixbundle", StringComparison.OrdinalIgnoreCase) ||
+                installerPath.EndsWith(".msix", StringComparison.OrdinalIgnoreCase) ||
+                installerPath.EndsWith(".appxbundle", StringComparison.OrdinalIgnoreCase))
             {
-                _logService.LogError("Không thể tự động tải gói WhatsApp: " + WingetExitCode.GetDescription(dlResult.ExitCode));
-                return dlResult;
+                return await InstallAppxPackageDirectAsync(installerPath, cancellationToken).ConfigureAwait(false);
             }
 
-            installerPath = FindCachedWhatsAppInstaller();
-            if (string.IsNullOrWhiteSpace(installerPath) || !File.Exists(installerPath))
+            // Win32 executable installer
+            var procResult = await _processRunner.RunAsync(installerPath, new[] { "/silent", "/quiet", "/norestart" }, cancellationToken).ConfigureAwait(false);
+            LogProcessResult(procResult, "Cài đặt WhatsApp Win32");
+            return procResult;
+        }
+
+        // 3. If NO offline package in Cache or LAN:
+        // Perform fast direct update via winget install (with temporary wuauserv unblock if blocked by WUB)
+        _logService.LogInfo("Chưa có sẵn gói offline trong bộ nhớ đệm. Đang tiến hành cập nhật WhatsApp trực tiếp từ Store...");
+
+        bool wasDisabled = IsWuauservDisabled();
+        if (wasDisabled)
+        {
+            _logService.LogWarning("Phát hiện Windows Update (wuauserv) đang bị khóa bởi WUB. Tạm thời mở khóa để cập nhật WhatsApp...");
+            await SetWuauservStartModeAsync(3, cancellationToken).ConfigureAwait(false); // 3 = Demand/Manual
+        }
+
+        try
+        {
+            var args = new[]
             {
-                return new ProcessResult(-1, "", "Không tìm thấy file gói cài sau khi tải hoàn tất.", false);
+                "install",
+                "--id", WhatsAppStoreId,
+                "--source", "msstore",
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+                "--disable-interactivity",
+                "--silent"
+            };
+
+            var result = await _processRunner.RunAsync("winget", args, cancellationToken).ConfigureAwait(false);
+            LogProcessResult(result, "Cập nhật trực tiếp WhatsApp từ Store");
+            return result;
+        }
+        finally
+        {
+            if (wasDisabled)
+            {
+                _logService.LogInfo("Khôi phục lại trạng thái khóa Windows Update (Disabled) ban đầu...");
+                await SetWuauservStartModeAsync(4, cancellationToken).ConfigureAwait(false); // 4 = Disabled
             }
         }
-
-        // 3. Install the package directly (Offline speed 3-5 seconds, bypassing Store & wuauserv)
-        _logService.LogInfo($"Tìm thấy gói cài đặt: {Path.GetFileName(installerPath)}. Bắt đầu cập nhật siêu tốc...");
-
-        if (installerPath.EndsWith(".msixbundle", StringComparison.OrdinalIgnoreCase) ||
-            installerPath.EndsWith(".msix", StringComparison.OrdinalIgnoreCase) ||
-            installerPath.EndsWith(".appxbundle", StringComparison.OrdinalIgnoreCase))
-        {
-            return await InstallAppxPackageDirectAsync(installerPath, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Win32 executable installer
-        var procResult = await _processRunner.RunAsync(installerPath, new[] { "/silent", "/quiet", "/norestart" }, cancellationToken).ConfigureAwait(false);
-        LogProcessResult(procResult, "Cài đặt WhatsApp Win32");
-        return procResult;
     }
 
     public async Task<ProcessResult> InstallAppxPackageDirectAsync(string packagePath, CancellationToken cancellationToken = default)
@@ -418,7 +535,7 @@ public partial class WingetService : IWingetService
         string cacheDir = _configService.GetCacheDirectory();
         Directory.CreateDirectory(cacheDir);
 
-        _logService.LogInfo($"Bắt đầu tải gói cài đặt WhatsApp mới nhất vào thư mục: {cacheDir}...");
+        _logService.LogInfo($"Bắt đầu tải gói cài đặt WhatsApp vào thư mục đệm: {cacheDir}...");
 
         bool wasDisabled = IsWuauservDisabled();
         if (wasDisabled)
@@ -429,7 +546,6 @@ public partial class WingetService : IWingetService
 
         try
         {
-            // Attempt downloading MS Store package first
             var args = new[]
             {
                 "download",
@@ -437,32 +553,24 @@ public partial class WingetService : IWingetService
                 "--source", "msstore",
                 "--download-directory", cacheDir,
                 "--accept-package-agreements",
-                "--accept-source-agreements"
+                "--accept-source-agreements",
+                "--disable-interactivity"
             };
 
             var result = await _processRunner.RunAsync("winget", args, cancellationToken).ConfigureAwait(false);
 
-            // If store download fails, try winget win32 package as fallback
-            if (!result.Succeeded)
-            {
-                _logService.LogWarning("Không tải được gói Store. Đang thử tải gói WhatsApp Win32...");
-                var fbArgs = new[]
-                {
-                    "download",
-                    "--id", WhatsAppWin32Id,
-                    "--download-directory", cacheDir,
-                    "--accept-package-agreements",
-                    "--accept-source-agreements"
-                };
-                result = await _processRunner.RunAsync("winget", fbArgs, cancellationToken).ConfigureAwait(false);
-            }
-
             if (result.Succeeded)
             {
                 _logService.LogSuccess("Đã tải xong gói cài đặt WhatsApp vào bộ nhớ đệm!");
-
-                // If Shared LAN directory configured and writable, copy package so all other PCs can use it without downloading!
                 CopyCachedPackageToLan(cacheDir);
+            }
+            else
+            {
+                string desc = WingetExitCode.GetDescription(result.ExitCode);
+                _logService.LogWarning($"Lệnh winget download trả về mã lỗi {result.ExitCode}: {desc}");
+                _logService.LogInfo("💡 Hướng dẫn cập nhật offline tối ưu:");
+                _logService.LogInfo("  1. Bấm '⚡ Cập nhật siêu tốc' để ứng dụng tự động cài đặt phiên bản mới nhất từ Store mà KHÔNG cần đăng nhập tài khoản.");
+                _logService.LogInfo("  2. Hoặc tải file gói WhatsApp (.msixbundle) một lần, bấm '📁 Cài từ tệp Offline...' hoặc lưu vào thư mục chia sẻ LAN để phân phối tức thì cho toàn bộ máy tính.");
             }
 
             return result;
@@ -475,6 +583,95 @@ public partial class WingetService : IWingetService
                 await SetWuauservStartModeAsync(4, cancellationToken).ConfigureAwait(false); // 4 = Disabled
             }
         }
+    }
+
+    public async Task<string?> GetInstalledAppxVersionAsync(string packageNamePattern, CancellationToken cancellationToken = default)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+
+        try
+        {
+            string safePattern = packageNamePattern.Replace("'", "''");
+            var args = new[]
+            {
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", $"(Get-AppxPackage -Name '{safePattern}' | Select-Object -ExpandProperty Version -First 1)"
+            };
+
+            var result = await _processRunner.RunAsync("powershell.exe", args, cancellationToken).ConfigureAwait(false);
+            if (result.Succeeded && !string.IsNullOrWhiteSpace(result.StandardOutput))
+            {
+                string ver = result.StandardOutput.Trim();
+                if (!string.IsNullOrWhiteSpace(ver) && !ver.Contains("Error", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ver;
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    private static string? GetInstalledWin32AppVersion(string appName)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+
+        string[] registryRoots =
+        {
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        };
+
+        foreach (var root in registryRoots)
+        {
+            try
+            {
+                using var hklmKey = Registry.LocalMachine.OpenSubKey(root);
+                if (hklmKey != null)
+                {
+                    foreach (var subkeyName in hklmKey.GetSubKeyNames())
+                    {
+                        using var subkey = hklmKey.OpenSubKey(subkeyName);
+                        var dispName = subkey?.GetValue("DisplayName")?.ToString();
+                        if (dispName != null && dispName.Contains(appName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var ver = subkey?.GetValue("DisplayVersion")?.ToString();
+                            if (!string.IsNullOrWhiteSpace(ver)) return ver;
+                        }
+                    }
+                }
+
+                using var hkcuKey = Registry.CurrentUser.OpenSubKey(root);
+                if (hkcuKey != null)
+                {
+                    foreach (var subkeyName in hkcuKey.GetSubKeyNames())
+                    {
+                        using var subkey = hkcuKey.OpenSubKey(subkeyName);
+                        var dispName = subkey?.GetValue("DisplayName")?.ToString();
+                        if (dispName != null && dispName.Contains(appName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var ver = subkey?.GetValue("DisplayVersion")?.ToString();
+                            if (!string.IsNullOrWhiteSpace(ver)) return ver;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        return null;
+    }
+
+    private static string CleanUnknownVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version) || version.Equals("<unknown>", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chưa rõ";
+        }
+        return version.Trim();
     }
 
     private string? FindCachedWhatsAppInstaller()
