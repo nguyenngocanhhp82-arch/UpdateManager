@@ -54,6 +54,28 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private UpdatePolicyModel _policyModel = new();
 
+    // --- Windows Update Service / WUB Status ---
+    [ObservableProperty]
+    private WindowsUpdateStatusInfo _wuStatus = new();
+
+    [ObservableProperty]
+    private bool _isProtectServiceSettings = true;
+
+    [ObservableProperty]
+    private string _windowsUpdateBadgeText = "Windows Update: ĐÃ KHÓA (Disabled)";
+
+    [ObservableProperty]
+    private string _windowsUpdateBadgeIcon = "🛡️";
+
+    [ObservableProperty]
+    private string _windowsUpdateBadgeBackground = "#FEF2F2";
+
+    [ObservableProperty]
+    private string _windowsUpdateBadgeForeground = "#DC2626";
+
+    [ObservableProperty]
+    private string _windowsUpdateBadgeBorder = "#FCA5A5";
+
     [ObservableProperty]
     private ScheduleTaskModel _scheduleModel = new();
 
@@ -171,6 +193,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         await RefreshWhatsAppStatusAsync().ConfigureAwait(false);
         await LoadPoliciesAsync().ConfigureAwait(false);
+        RefreshWindowsUpdateStatus();
         await LoadScheduleStatusAsync().ConfigureAwait(false);
     }
 
@@ -1154,7 +1177,11 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var policies = await Task.Run(() => _policyService.GetCurrentPolicies());
-            ExecuteOnUIThread(() => PolicyModel = policies);
+            ExecuteOnUIThread(() =>
+            {
+                PolicyModel = policies;
+                RefreshWindowsUpdateStatus();
+            });
         }
         catch (Exception ex)
         {
@@ -1216,35 +1243,116 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task ToggleWuauservAsync()
+    public void RefreshWindowsUpdateStatus()
     {
-        if (IsBusy) return;
-        IsBusy = true;
-
         try
         {
-            bool willDisable = !PolicyModel.IsWuauservDisabled;
-            string msg = willDisable
-                ? "Bạn có chắc chắn muốn Khóa/Tắt dịch vụ Windows Update (wuauserv)?"
-                : "Bạn có chắc chắn muốn Bật lại dịch vụ Windows Update (wuauserv - Manual)?";
-
-            if (!ConfirmAction("Cấu hình dịch vụ wuauserv", msg))
+            var status = _policyService.GetWindowsUpdateStatus();
+            ExecuteOnUIThread(() =>
             {
-                return;
-            }
-
-            StatusText = willDisable ? "Đang khóa dịch vụ wuauserv..." : "Đang bật dịch vụ wuauserv...";
-            await _policyService.SetWuauservDisabledAsync(willDisable).ConfigureAwait(false);
-            await LoadPoliciesAsync();
+                WuStatus = status;
+                if (status.IsDisabled)
+                {
+                    WindowsUpdateBadgeText = "Windows Update: ĐÃ KHÓA (Disabled)";
+                    WindowsUpdateBadgeIcon = "🛡️";
+                    WindowsUpdateBadgeBackground = "#FEF2F2";
+                    WindowsUpdateBadgeForeground = "#DC2626";
+                    WindowsUpdateBadgeBorder = "#FCA5A5";
+                }
+                else
+                {
+                    WindowsUpdateBadgeText = "Windows Update: ĐANG BẬT (Enabled)";
+                    WindowsUpdateBadgeIcon = "🟢";
+                    WindowsUpdateBadgeBackground = "#ECFDF5";
+                    WindowsUpdateBadgeForeground = "#059669";
+                    WindowsUpdateBadgeBorder = "#6EE7B7";
+                }
+            });
         }
         catch (Exception ex)
         {
-            _logService.LogError("Lỗi khi thay đổi trạng thái dịch vụ wuauserv: " + ex.Message, ex);
+            _logService.LogWarning("Không thể cập nhật trạng thái Windows Update: " + ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    public async Task EnableWindowsUpdateAsync()
+    {
+        if (IsBusy) return;
+        if (!ConfirmAction(
+            "Bật Windows Update",
+            "Bạn có chắc chắn muốn BẬT LẠI dịch vụ Windows Update?\n\nPhần mềm sẽ tự động phá khóa WUB, khắc phục lỗi 'Access is denied' và khôi phục toàn diện dịch vụ để bạn có thể cập nhật."))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = "Đang phá khóa WUB và bật lại Windows Update...";
+
+        try
+        {
+            await _policyService.UnlockAndEnableWindowsUpdateAsync().ConfigureAwait(false);
+            await LoadPoliciesAsync().ConfigureAwait(false);
+            RefreshWindowsUpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi bật lại Windows Update: " + ex.Message, ex);
         }
         finally
         {
             IsBusy = false;
             StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DisableWindowsUpdateAsync()
+    {
+        if (IsBusy) return;
+        if (!ConfirmAction(
+            "Khóa Windows Update (Chế độ WUB)",
+            "Bạn có chắc chắn muốn KHÓA TRIỆT ĐỂ Windows Update?\n\nPhần mềm sẽ dừng và vô hiệu hóa dịch vụ wuauserv, WaaSMedicSvc, UsoSvc và kích hoạt chính sách cấm tự động cập nhật ngầm."))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = "Đang khóa triệt để Windows Update (Chế độ WUB)...";
+
+        try
+        {
+            await _policyService.SetWuauservDisabledAsync(true, IsProtectServiceSettings).ConfigureAwait(false);
+            await LoadPoliciesAsync().ConfigureAwait(false);
+            RefreshWindowsUpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Lỗi khi khóa Windows Update: " + ex.Message, ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            StatusText = "Sẵn sàng";
+        }
+    }
+
+    [RelayCommand]
+    public void NavigateToPoliciesTab()
+    {
+        SelectedTabIndex = 4; // Tab 5 (Index 4: Tùy chỉnh cập nhật & Lịch)
+    }
+
+    [RelayCommand]
+    public async Task ToggleWuauservAsync()
+    {
+        if (WuStatus.IsDisabled)
+        {
+            await EnableWindowsUpdateAsync();
+        }
+        else
+        {
+            await DisableWindowsUpdateAsync();
         }
     }
 

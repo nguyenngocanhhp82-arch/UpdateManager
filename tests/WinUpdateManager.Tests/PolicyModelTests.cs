@@ -26,4 +26,15 @@ public class PolicyModelTests
         Assert.False(model.DisableStoreAutoDownload);
         Assert.False(model.IsWuauservDisabled);
     }
+
+    [Fact]
+    public void WindowsUpdateStatusInfo_DefaultValues_AreDisabled()
+    {
+        var status = new WindowsUpdateStatusInfo();
+
+        Assert.True(status.IsDisabled);
+        Assert.Equal("Đang Bị Khóa (Disabled)", status.DisplayStatus);
+        Assert.Equal("#DC2626", status.StatusColor);
+        Assert.Equal("Disabled", status.ServiceStartMode);
+    }
 }

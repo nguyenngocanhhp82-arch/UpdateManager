@@ -764,8 +764,27 @@ public partial class WingetService : IWingetService
         if (!OperatingSystem.IsWindows()) return;
         try
         {
+            // Phá khóa WUB / phân quyền Administrator trên khóa Registry để tránh lỗi 'Access is denied'
+            WindowsSecurityHelper.UnlockServiceRegistryKey("wuauserv");
+
+            if (startMode == 3)
+            {
+                // Khôi phục quyền SDDL chuẩn để Service Control Manager cho phép thao tác
+                string defaultSddl = "D:(A;;CCLCSWRPLORC;;;AU)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)S:(AU;FA;CCDCLCSWRPWPDTLOSDRCWDWO;;;WD)";
+                await _processRunner.RunAsync("sc.exe", new[] { "sdset", "wuauserv", defaultSddl }, ct).ConfigureAwait(false);
+            }
+
             string mode = startMode == 4 ? "disabled" : "demand";
             await _processRunner.RunAsync("sc.exe", new[] { "config", "wuauserv", $"start={mode}" }, ct).ConfigureAwait(false);
+
+            // Ghi trực tiếp Start vào Registry làm phương án dự phòng chắc chắn
+            try
+            {
+                using var key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\wuauserv", writable: true);
+                key?.SetValue("Start", startMode, RegistryValueKind.DWord);
+            }
+            catch { }
+
             if (startMode == 4)
             {
                 await _processRunner.RunAsync("net.exe", new[] { "stop", "wuauserv" }, ct).ConfigureAwait(false);

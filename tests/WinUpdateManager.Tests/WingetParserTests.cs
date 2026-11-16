@@ -189,6 +189,8 @@ Microsoft Teams                   Microsoft.Teams        <unknown>        1.6.00
     [InlineData(87, "Mã lỗi 87")]
     [InlineData(unchecked((int)0x80070057), "Mã lỗi 87")]
     [InlineData(unchecked((int)0x8A150056), "tài khoản Microsoft")]
+    [InlineData(unchecked((int)0x8A150076), "WUB")]
+    [InlineData(5, "Access is denied")]
     [InlineData(unchecked((int)0x8A150044), "Tải gói cài đặt thất bại")]
     public void WingetExitCode_MapsCodesToVietnamese(int code, string expectedSubstring)
     {

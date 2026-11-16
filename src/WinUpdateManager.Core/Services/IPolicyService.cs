@@ -9,5 +9,7 @@ public interface IPolicyService
     void ResetToDefaults();
 
     bool IsWuauservDisabled();
-    Task<ProcessResult> SetWuauservDisabledAsync(bool disable, CancellationToken cancellationToken = default);
+    WindowsUpdateStatusInfo GetWindowsUpdateStatus();
+    Task<ProcessResult> SetWuauservDisabledAsync(bool disable, bool protectSettings = true, CancellationToken cancellationToken = default);
+    Task<ProcessResult> UnlockAndEnableWindowsUpdateAsync(CancellationToken cancellationToken = default);
 }

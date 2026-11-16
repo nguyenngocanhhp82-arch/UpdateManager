@@ -17,6 +17,7 @@ public static class WingetExitCode
             unchecked((int)0x801901F4) => "Máy chủ của nhà phát hành gặp sự cố nội bộ (HTTP 500 - Internal Server Error).",
 
             // Winget specific HRESULT error codes
+            unchecked((int)0x8A150076) => "Yêu cầu xác thực tài khoản Microsoft hoặc dịch vụ Windows Update (wuauserv) đang bị chặn bởi công cụ bảo vệ (như WUB). Hãy bấm 'Bật Windows Update' trong phần mềm hoặc nạp file gói .msixbundle offline.",
             unchecked((int)0x8A150011) => "Không tìm thấy bản cập nhật phù hợp cho gói này.",
             unchecked((int)0x8A150005) => "Không tìm thấy gói phần mềm với ID được cung cấp.",
             unchecked((int)0x8A150024) => "Gói phần mềm đã bị ghim phiên bản (Pinned), không thể tự động nâng cấp.",
@@ -32,6 +33,7 @@ public static class WingetExitCode
             unchecked((int)0x8A150007) => "Mã băm kiểm tra (SHA256 Hash) của file cài đặt không trùng khớp.",
 
             // Windows System & Installer error codes
+            5 => "Truy cập bị từ chối (Access is denied - Mã lỗi 5). Dịch vụ hoặc khóa Registry đang bị công cụ bảo vệ (WUB) khóa quyền truy cập.",
             87 => "Tham số không hợp lệ (Mã lỗi 87 - ERROR_INVALID_PARAMETER).",
             unchecked((int)0x80070057) => "Tham số không hợp lệ (ERROR_INVALID_PARAMETER - Mã lỗi 87).",
             unchecked((int)0x80070005) => "Truy cập bị từ chối (ERROR_ACCESS_DENIED). Cần chạy với quyền Administrator.",

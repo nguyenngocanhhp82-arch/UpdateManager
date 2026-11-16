@@ -42,6 +42,25 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Nút/Huy hiệu trạng thái Windows Update (WUB Mode) -->
+                    <Button Command="{Binding NavigateToPoliciesTabCommand}"
+                            Cursor="Hand" Margin="0,0,10,0" ToolTip="Xem trạng thái và cấu hình Bật/Khóa Windows Update (Chế độ tương thích WUB)">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{Binding WindowsUpdateBadgeBackground}"
+                                        BorderBrush="{Binding WindowsUpdateBadgeBorder}"
+                                        BorderThickness="1.5"
+                                        CornerRadius="12"
+                                        Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding WindowsUpdateBadgeIcon}" FontSize="12" Margin="0,0,5,0" />
+                                        <TextBlock Text="{Binding WindowsUpdateBadgeText}" FontSize="11" FontWeight="Bold" Foreground="{Binding WindowsUpdateBadgeForeground}" />
+                                    </StackPanel>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
                     <Border Background="#EEF2FF" CornerRadius="12" Padding="10,4">
                         <TextBlock Text="Quyền: Quản trị viên (Admin)" FontSize="11" FontWeight="SemiBold" Foreground="#4F46E5" />
                     </Border>
@@ -92,6 +111,11 @@
                             <StackPanel Grid.Row="1" Margin="0,8,0,10">
                                 <TextBlock Text="{Binding WhatsAppInfoText}" FontSize="12" Foreground="#374151" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding WhatsAppCachedBadgeText}" FontSize="11" Foreground="#059669" Margin="0,2,0,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Trạng thái dịch vụ cập nhật: " FontSize="11" Foreground="#6B7280" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding WindowsUpdateBadgeText}" FontSize="11" FontWeight="Bold" Foreground="{Binding WindowsUpdateBadgeForeground}" VerticalAlignment="Center" Margin="2,0,6,0" />
+                                    <TextBlock Text="• Tự động phá khóa WUB an toàn khi cập nhật" FontSize="11" Foreground="#059669" VerticalAlignment="Center" />
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- WhatsApp Action Buttons -->
@@ -776,49 +800,77 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- SECTION 1: CHẾ ĐỘ CẬP NHẬT & DỊCH VỤ WUAUSERV -->
-                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,0,0,12">
+                                <!-- SECTION 1: BẢNG ĐIỀU KHIỂN WINDOWS UPDATE (CHẾ ĐỘ TƯƠNG THÍCH WUB) -->
+                                <Border Background="#F9FAFB" BorderBrush="{Binding WindowsUpdateBadgeBorder}" BorderThickness="1.5" CornerRadius="6" Padding="16,14" Margin="0,0,0,14">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
-                                        <!-- Dịch vụ wuauserv toggle -->
+                                        <!-- Header & Current Status Display -->
                                         <Grid Grid.Row="0" Margin="0,0,0,12">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Dịch vụ cập nhật hệ thống (wuauserv):" FontWeight="Bold" FontSize="13" Foreground="#111827" />
-                                                <TextBlock Text="Khóa/Tắt dịch vụ wuauserv để chặn triệt để Windows tự động cập nhật ngầm." FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
+                                            <StackPanel Grid.Column="0">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🛡️ BẢNG ĐIỀU KHIỂN WINDOWS UPDATE (WUB MODE)" FontWeight="Bold" FontSize="14" Foreground="#111827" />
+                                                    <Border Background="{Binding WindowsUpdateBadgeBackground}" BorderBrush="{Binding WindowsUpdateBadgeBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding WindowsUpdateBadgeText}" FontWeight="Bold" FontSize="11" Foreground="{Binding WindowsUpdateBadgeForeground}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding WuStatus.StatusDescription}" FontSize="12" Foreground="#4B5563" Margin="0,3,0,0" />
                                             </StackPanel>
 
-                                            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Command="{Binding ToggleWuauservCommand}" Padding="12,5">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="4" Padding="12,5">
-                                                            <TextBlock FontSize="12" FontWeight="Bold">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Text" Value="🔒 Khóa/Tắt dịch vụ (wuauserv)" />
-                                                                        <Setter Property="Foreground" Value="#DC2626" />
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding PolicyModel.IsWuauservDisabled}" Value="True">
-                                                                                <Setter Property="Text" Value="🔓 Bật lại dịch vụ (Manual)" />
-                                                                                <Setter Property="Foreground" Value="#059669" />
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
-                                                        </Border>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                            </Button>
+                                            <Button Grid.Column="1" Content="🔄 Làm mới" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshWindowsUpdateStatusCommand}" VerticalAlignment="Center" Padding="10,5" />
                                         </Grid>
+
+                                        <!-- Direct Action Controls (Like WUB) -->
+                                        <Grid Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,10">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Nút 1: Khóa Windows Update (Disable / Block) -->
+                                                <Button Command="{Binding DisableWindowsUpdateCommand}" Padding="14,7" Margin="0,0,10,0" ToolTip="Dừng và vô hiệu hóa triệt để wuauserv, WaaSMedicSvc, UsoSvc và kích hoạt NoAutoUpdate=1.">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="#DC2626" CornerRadius="4" Padding="14,7" Cursor="Hand">
+                                                                <TextBlock Text="🔒 Khóa Windows Update (Disable)" FontWeight="Bold" Foreground="#FFFFFF" FontSize="12" />
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+
+                                                <!-- Nút 2: Bật lại Windows Update (Enable / Unblock) -->
+                                                <Button Command="{Binding EnableWindowsUpdateCommand}" Padding="14,7" Margin="0,0,10,0" ToolTip="Tự động phá khóa WUB, khắc phục lỗi 'Access is denied', gỡ bỏ hạn chế quyền và kích hoạt lại dịch vụ cập nhật.">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="#059669" CornerRadius="4" Padding="14,7" Cursor="Hand">
+                                                                <TextBlock Text="🔓 Bật Windows Update (Enable)" FontWeight="Bold" Foreground="#FFFFFF" FontSize="12" />
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+
+                                                <CheckBox Content="Bảo vệ thiết lập dịch vụ (Protect Service Settings - Chống Windows tự phục hồi)" IsChecked="{Binding IsProtectServiceSettings}" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="12" FontWeight="SemiBold" ToolTip="Khóa quyền ACL để các tiến trình Windows không thể tự động bật lại cập nhật ngầm." />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Ghi chú giải thích tính năng -->
+                                        <Border Grid.Row="2" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="4" Padding="10,6">
+                                            <TextBlock Text="💡 Tương thích hoàn toàn với Windows Update Blocker (WUB). Ứng dụng tích hợp cơ chế tự động chiếm quyền sở hữu (Take Ownership) để phá bỏ triệt để lỗi 'Access is denied' (Exit Code 5) khi điều khiển dịch vụ." FontSize="11" Foreground="#1E40AF" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                                <!-- SECTION 2: CHẾ ĐỘ CẬP NHẬT (AUOPTIONS) -->
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
                                         <!-- Chế độ AU -->
                                         <StackPanel Grid.Row="1">
