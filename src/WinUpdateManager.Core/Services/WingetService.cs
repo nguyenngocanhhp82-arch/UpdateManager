@@ -766,6 +766,10 @@ public partial class WingetService : IWingetService
         {
             string mode = startMode == 4 ? "disabled" : "demand";
             await _processRunner.RunAsync("sc.exe", new[] { "config", "wuauserv", $"start={mode}" }, ct).ConfigureAwait(false);
+            if (startMode == 4)
+            {
+                await _processRunner.RunAsync("net.exe", new[] { "stop", "wuauserv" }, ct).ConfigureAwait(false);
+            }
         }
         catch { }
     }
