@@ -21,6 +21,15 @@ public class XamlValidationTests
         "ContentControl"
     };
 
+    private static readonly Dictionary<string, HashSet<string>> DisallowedAttributes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Grid"] = new(StringComparer.OrdinalIgnoreCase) { "BorderBrush", "BorderThickness", "CornerRadius", "Padding" },
+        ["StackPanel"] = new(StringComparer.OrdinalIgnoreCase) { "BorderBrush", "BorderThickness", "CornerRadius", "Padding" },
+        ["WrapPanel"] = new(StringComparer.OrdinalIgnoreCase) { "BorderBrush", "BorderThickness", "CornerRadius", "Padding" },
+        ["DockPanel"] = new(StringComparer.OrdinalIgnoreCase) { "BorderBrush", "BorderThickness", "CornerRadius", "Padding" },
+        ["Canvas"] = new(StringComparer.OrdinalIgnoreCase) { "BorderBrush", "BorderThickness", "CornerRadius", "Padding" }
+    };
+
     [Fact]
     public void AllXamlFiles_MustBeValidXml_AndObeySingleChildContentControlRules()
     {
@@ -89,6 +98,17 @@ public class XamlValidationTests
                     {
                         var childrenNames = string.Join(", ", contentChildren.Select(c => $"<{c.Name.LocalName}>"));
                         violations.Add($"[WPF MC3089 Error] {relativePath}(line {line}): '{localName}' has {contentChildren.Count} direct content children ({childrenNames}), but can accept only ONE child.");
+                    }
+                }
+
+                if (DisallowedAttributes.TryGetValue(localName, out var disallowed))
+                {
+                    foreach (var attr in elem.Attributes())
+                    {
+                        if (disallowed.Contains(attr.Name.LocalName))
+                        {
+                            violations.Add($"[WPF MC3072 Error] {relativePath}(line {line}): Property '{attr.Name.LocalName}' does not exist on '{localName}'. Use a Border element instead.");
+                        }
                     }
                 }
             }
