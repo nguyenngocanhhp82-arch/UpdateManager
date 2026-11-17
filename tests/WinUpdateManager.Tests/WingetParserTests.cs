@@ -192,6 +192,8 @@ Microsoft Teams                   Microsoft.Teams        <unknown>        1.6.00
     [InlineData(unchecked((int)0x8A150076), "WUB")]
     [InlineData(5, "Access is denied")]
     [InlineData(unchecked((int)0x8A150044), "Tải gói cài đặt thất bại")]
+    [InlineData(unchecked((int)0x80242004), "0x80242004")]
+    [InlineData(unchecked((int)0x800f0825), "CBS_E_CANNOT_UNINSTALL")]
     public void WingetExitCode_MapsCodesToVietnamese(int code, string expectedSubstring)
     {
         string desc = WingetExitCode.GetDescription(code);

@@ -62,4 +62,22 @@ The operation completed successfully.
         packages[1].State.Should().Be("Installed");
         packages[1].IsRollupFix.Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData(87, "Mã lỗi 87")]
+    [InlineData(unchecked((int)0x80070057), "Mã lỗi 87")]
+    [InlineData(unchecked((int)0x80242004), "0x80242004")]
+    [InlineData(unchecked((int)0x80242004), "Servicing Stack")]
+    [InlineData(unchecked((int)0x800f0825), "CBS_E_CANNOT_UNINSTALL")]
+    [InlineData(unchecked((int)0x80240017), "RollupFix")]
+    [InlineData(unchecked((int)0x80070005), "Administrator")]
+    [InlineData(unchecked((int)0x80240024), "không tồn tại")]
+    [InlineData(unchecked((int)0x80240043), "phụ thuộc chu kỳ")]
+    [InlineData(unchecked((int)0x80070bc9), "khởi động lại")]
+    [InlineData(unchecked((int)0x8024001e), "wuauserv")]
+    public void ExplainWusaErrorCode_ReturnsClearVietnameseExplanation(int code, string expectedSubstring)
+    {
+        string explanation = HotfixService.ExplainWusaErrorCode(code);
+        explanation.Should().Contain(expectedSubstring);
+    }
 }

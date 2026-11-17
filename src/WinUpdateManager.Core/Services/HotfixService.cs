@@ -93,15 +93,16 @@ public partial class HotfixService : IHotfixService
         // 1. Kiểm tra trạng thái gói trong Registry CBS trước tiên
         if (OperatingSystem.IsWindows())
         {
-            var (cbsPackageName, currentState) = FindCbsPackageByKb(digits);
-            if (currentState == 128) // 0x80 = Permanent
+            var (cbsPackageName, currentState, isPermanent) = FindCbsPackageByKb(digits);
+            if (currentState == 128 || isPermanent) // 0x80 = Permanent hoặc có cờ Permanent = 1
             {
-                string msg = $"Bản cập nhật KB{digits} ({cbsPackageName}) là gói hệ thống vĩnh viễn (Permanent / Servicing Stack). Windows đã tích hợp gói này vào nhân hệ điều hành và không cho phép gỡ bỏ độc lập.";
+                string msg = $"Bản cập nhật KB{digits} ({cbsPackageName ?? "Gói hệ thống"}) là gói hệ thống vĩnh viễn (Permanent / Servicing Stack). Windows đã tích hợp gói này vào nhân hệ điều hành và không cho phép gỡ bỏ độc lập.";
                 _logService.LogError(msg);
                 _logService.LogInfo("💡 Giải pháp nếu bản cập nhật này gây lỗi trên máy:");
                 _logService.LogInfo("  1. Dùng tính năng 'Quay về điểm phục hồi hệ thống' (System Restore Point).");
                 _logService.LogInfo("  2. Khởi động vào môi trường cứu hộ Windows (WinRE) và chọn 'Uninstall latest quality update'.");
-                return new ProcessResult(87, string.Empty, msg);
+                _logService.LogInfo("  3. Sử dụng công cụ sửa chữa tệp hệ thống: sfc /scannow hoặc dism /online /cleanup-image /restorehealth.");
+                return new ProcessResult(unchecked((int)0x80242004), string.Empty, msg);
             }
             else if (currentState == 80) // 0x50 = Superseded
             {
@@ -125,7 +126,7 @@ public partial class HotfixService : IHotfixService
         {
             try
             {
-                var (cbsPackageName, _) = FindCbsPackageByKb(digits);
+                var (cbsPackageName, _, _) = FindCbsPackageByKb(digits);
                 string? targetPackage = cbsPackageName;
 
                 if (string.IsNullOrWhiteSpace(targetPackage))
@@ -198,7 +199,17 @@ public partial class HotfixService : IHotfixService
         {
             string errorExplanation = ExplainWusaErrorCode(result.ExitCode);
             _logService.LogError($"Gỡ bỏ KB{digits} thất bại (ExitCode {result.ExitCode}): {errorExplanation}");
-            _logService.LogInfo("💡 Mẹo: Bạn có thể bấm nút '⚙ Mở Gỡ cài đặt của Windows' ở thanh công cụ phía trên để xem các bản vá được phép gỡ qua giao diện hệ thống.");
+            if (result.ExitCode == unchecked((int)0x80242004) || result.ExitCode == 87 || result.ExitCode == unchecked((int)0x800f0825))
+            {
+                _logService.LogWarning("💡 Hướng dẫn xử lý sự cố cho bản cập nhật không thể gỡ bỏ:");
+                _logService.LogInfo("  • Khởi động vào chế độ Windows Recovery (WinRE): Giữ Shift khi bấm Restart -> Troubleshoot -> Advanced Options -> Uninstall Updates -> 'Uninstall latest quality update'.");
+                _logService.LogInfo("  • Sử dụng System Restore: Mở phần mềm -> tab 'Rollback' hoặc chạy rstrui.exe để quay lại thời điểm trước khi cập nhật.");
+                _logService.LogInfo("  • Quét phục hồi file hệ thống: Chạy lệnh 'sfc /scannow' trong cmd với quyền Admin.");
+            }
+            else
+            {
+                _logService.LogInfo("💡 Mẹo: Bạn có thể bấm nút '⚙ Mở Gỡ cài đặt của Windows' ở thanh công cụ phía trên để xem các bản vá được phép gỡ qua giao diện hệ thống.");
+            }
             return result;
         }
 
@@ -298,9 +309,9 @@ public partial class HotfixService : IHotfixService
         return result;
     }
 
-    public static (string? packageName, int currentState) FindCbsPackageByKb(string digits)
+    public static (string? packageName, int currentState, bool isPermanent) FindCbsPackageByKb(string digits)
     {
-        if (!OperatingSystem.IsWindows()) return (null, 0);
+        if (!OperatingSystem.IsWindows()) return (null, 0, false);
 
         try
         {
@@ -308,28 +319,60 @@ public partial class HotfixService : IHotfixService
             if (key != null)
             {
                 var names = key.GetSubKeyNames();
-                // Tìm subkey chứa chuỗi số KB
-                var match = names.FirstOrDefault(n =>
-                    n.Contains(digits, StringComparison.OrdinalIgnoreCase) &&
-                    (n.StartsWith("Package_for_", StringComparison.OrdinalIgnoreCase) || n.Contains("KB", StringComparison.OrdinalIgnoreCase)));
+                var matchingNames = names.Where(n => n.Contains(digits, StringComparison.OrdinalIgnoreCase)).ToList();
 
-                match ??= names.FirstOrDefault(n => n.Contains(digits, StringComparison.OrdinalIgnoreCase));
+                string? bestMatch = null;
+                int bestState = 0;
+                bool isPermanent = false;
 
-                if (match != null)
+                foreach (var name in matchingNames)
                 {
-                    using var subKey = key.OpenSubKey(match);
-                    int currentState = 0;
-                    if (subKey?.GetValue("CurrentState") is int stateVal)
+                    using var subKey = key.OpenSubKey(name);
+                    if (subKey == null) continue;
+
+                    int state = 0;
+                    if (subKey.GetValue("CurrentState") is int stateVal)
                     {
-                        currentState = stateVal;
+                        state = stateVal;
                     }
-                    return (match, currentState);
+
+                    if (subKey.GetValue("Permanent") is int permVal && permVal == 1)
+                    {
+                        isPermanent = true;
+                    }
+
+                    if (state == 128) // 0x80 = Permanent
+                    {
+                        isPermanent = true;
+                    }
+
+                    if (bestMatch == null)
+                    {
+                        bestMatch = name;
+                        bestState = state;
+                    }
+                    else if (name.StartsWith("Package_for_", StringComparison.OrdinalIgnoreCase) &&
+                             !bestMatch.StartsWith("Package_for_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bestMatch = name;
+                        bestState = state;
+                    }
+                    else if (state == 128 || state == 80)
+                    {
+                        bestMatch = name;
+                        bestState = state;
+                    }
+                }
+
+                if (bestMatch != null)
+                {
+                    return (bestMatch, bestState, isPermanent);
                 }
             }
         }
         catch { }
 
-        return (null, 0);
+        return (null, 0, false);
     }
 
     public async Task<ProcessResult> OpenInstalledUpdatesControlPanelAsync(CancellationToken cancellationToken = default)
@@ -416,17 +459,21 @@ public partial class HotfixService : IHotfixService
         return match.Success ? match.Value : kbNumber.Trim();
     }
 
-    private static string ExplainWusaErrorCode(int exitCode)
+    public static string ExplainWusaErrorCode(int exitCode)
     {
         return exitCode switch
         {
             87 => "Tham số không hợp lệ (Mã lỗi 87 - 0x00000057 / ERROR_INVALID_PARAMETER). Bản cập nhật này thường là bản vá tích lũy cốt lõi (Cumulative Update) hoặc bản vá nền tảng (Servicing Stack) mà Windows đã khóa vĩnh viễn (Permanent) không cho phép gỡ bỏ qua dòng lệnh.",
             unchecked((int)0x80070057) => "Tham số không hợp lệ (Mã lỗi 87 - 0x00000057 / ERROR_INVALID_PARAMETER). Bản cập nhật này thường là bản vá tích lũy cốt lõi (Cumulative Update) hoặc bản vá nền tảng (Servicing Stack) mà Windows đã khóa vĩnh viễn (Permanent) không cho phép gỡ bỏ qua dòng lệnh.",
+            unchecked((int)0x80242004) => "Bản cập nhật này không hỗ trợ thao tác gỡ bỏ (Mã lỗi -2145116156 - 0x80242004 / WU_E_UH_DOESNOTSUPPORTACTION). Đây là gói cập nhật tích hợp Servicing Stack (SSU) hoặc mốc cập nhật cốt lõi bắt buộc, hệ điều hành Windows quy định vĩnh viễn không thể gỡ để bảo vệ nhân hệ thống.",
             unchecked((int)0x80240017) => "Bản cập nhật này không thể gỡ qua WUSA (thường là bản cập nhật tích lũy bắt buộc Cumulative Update). Bạn có thể thử gỡ gói RollupFix qua mục DISM.",
             unchecked((int)0x800f081f) => "Không tìm thấy nguồn hoặc gói cập nhật trên máy.",
-            unchecked((int)0x800f0825) => "Gói cập nhật này đã được tích hợp vĩnh viễn (Permanent package) và không thể gỡ bỏ.",
+            unchecked((int)0x800f0825) => "Gói cập nhật này đã được tích hợp vĩnh viễn (Permanent package - CBS_E_CANNOT_UNINSTALL) và không thể gỡ bỏ.",
             unchecked((int)0x80070005) => "Truy cập bị từ chối (cần quyền Administrator).",
             unchecked((int)0x80240024) => "Bản cập nhật không tồn tại hoặc đã được gỡ trước đó.",
+            unchecked((int)0x80240043) => "Thao tác gỡ bị xung đột hoặc không thể hoàn tất do ràng buộc phụ thuộc chu kỳ.",
+            unchecked((int)0x80070bc9) => "Thao tác yêu cầu khởi động lại máy tính trước khi có thể tiếp tục (ERROR_FAIL_REBOOT_REQUIRED).",
+            unchecked((int)0x8024001e) => "Dịch vụ Windows Update (wuauserv) đang bị dừng hoặc bị vô hiệu hóa.",
             _ => $"Lỗi Windows Update Standalone Installer: mã lỗi {exitCode} (0x{exitCode:X8})."
         };
     }

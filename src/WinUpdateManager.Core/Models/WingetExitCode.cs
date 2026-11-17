@@ -34,10 +34,12 @@ public static class WingetExitCode
 
             // Windows System & Installer error codes
             5 => "Truy cập bị từ chối (Access is denied - Mã lỗi 5). Dịch vụ hoặc khóa Registry đang bị công cụ bảo vệ (WUB) khóa quyền truy cập.",
-            87 => "Tham số không hợp lệ (Mã lỗi 87 - ERROR_INVALID_PARAMETER).",
+            87 => "Tham số không hợp lệ (Mã lỗi 87 - ERROR_INVALID_PARAMETER). Bản cập nhật thường là gói tích lũy cốt lõi hoặc Servicing Stack đã bị khóa vĩnh viễn không thể gỡ qua CLI.",
             unchecked((int)0x80070057) => "Tham số không hợp lệ (ERROR_INVALID_PARAMETER - Mã lỗi 87).",
             unchecked((int)0x80070005) => "Truy cập bị từ chối (ERROR_ACCESS_DENIED). Cần chạy với quyền Administrator.",
             unchecked((int)0x80070002) => "Hệ thống không tìm thấy tệp được chỉ định (ERROR_FILE_NOT_FOUND).",
+            unchecked((int)0x80242004) => "Thao tác không được hỗ trợ bởi trình xử lý cập nhật (Mã lỗi -2145116156 - 0x80242004 / WU_E_UH_DOESNOTSUPPORTACTION). Gói cập nhật này (thường là Servicing Stack hoặc bản vá cốt lõi) được Windows quy định vĩnh viễn không thể gỡ bỏ.",
+            unchecked((int)0x800f0825) => "Gói cập nhật này đã được tích hợp vĩnh viễn vào hệ điều hành (0x800F0825 - CBS_E_CANNOT_UNINSTALL) và không thể gỡ bỏ.",
             unchecked((int)0x80240017) => "Bản cập nhật không thể gỡ qua WUSA do là gói cập nhật tích lũy bắt buộc (Cumulative Update).",
             3010 => "Cập nhật thành công, cần khởi động lại máy tính.",
             1602 => "Người dùng đã hủy tiến trình cài đặt.",
