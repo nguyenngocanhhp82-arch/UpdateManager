@@ -371,7 +371,10 @@
                                     <CheckBox Content="Chặn cài lại (Tự động Ẩn bản vá trên Windows Update)" IsChecked="{Binding AutoBlockReinstall}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
                                 </StackPanel>
 
-                                <Button Grid.Column="1" Content="🛡 Tạo Restore Point thủ công" Style="{StaticResource SecondaryButton}" Command="{Binding CreateRestorePointCommand}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="🛡 Tạo Restore Point" Style="{StaticResource SecondaryButton}" Command="{Binding CreateRestorePointCommand}" Margin="0,0,8,0" />
+                                    <Button Content="⚙ Mở Gỡ cài đặt của Windows" Style="{StaticResource SecondaryButton}" Command="{Binding OpenInstalledUpdatesControlPanelCommand}" ToolTip="Mở cửa sổ gỡ cài đặt bản cập nhật chính thức của hệ điều hành Windows" />
+                                </StackPanel>
                             </Grid>
 
                             <!-- View Mode Selector -->

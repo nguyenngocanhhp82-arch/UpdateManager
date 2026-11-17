@@ -1,5 +1,6 @@
 using System.Management;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 using WinUpdateManager.Core.Models;
 
 namespace WinUpdateManager.Core.Services;
@@ -89,49 +90,97 @@ public partial class HotfixService : IHotfixService
 
         _logService.LogWarning($"--- Bắt đầu quy trình gỡ bỏ bản cập nhật KB{digits} ---");
 
-        // 1. Create Restore Point if requested
+        // 1. Kiểm tra trạng thái gói trong Registry CBS trước tiên
+        if (OperatingSystem.IsWindows())
+        {
+            var (cbsPackageName, currentState) = FindCbsPackageByKb(digits);
+            if (currentState == 128) // 0x80 = Permanent
+            {
+                string msg = $"Bản cập nhật KB{digits} ({cbsPackageName}) là gói hệ thống vĩnh viễn (Permanent / Servicing Stack). Windows đã tích hợp gói này vào nhân hệ điều hành và không cho phép gỡ bỏ độc lập.";
+                _logService.LogError(msg);
+                _logService.LogInfo("💡 Giải pháp nếu bản cập nhật này gây lỗi trên máy:");
+                _logService.LogInfo("  1. Dùng tính năng 'Quay về điểm phục hồi hệ thống' (System Restore Point).");
+                _logService.LogInfo("  2. Khởi động vào môi trường cứu hộ Windows (WinRE) và chọn 'Uninstall latest quality update'.");
+                return new ProcessResult(87, string.Empty, msg);
+            }
+            else if (currentState == 80) // 0x50 = Superseded
+            {
+                string msg = $"Bản cập nhật KB{digits} ({cbsPackageName}) đã bị thay thế (Superseded) bởi một bản cập nhật tích lũy mới hơn trên máy tính. Bạn cần gỡ bản cập nhật tích lũy mới nhất hiện tại.";
+                _logService.LogError(msg);
+                return new ProcessResult(87, string.Empty, msg);
+            }
+        }
+
+        // 2. Tạo Restore Point nếu được yêu cầu
         if (createRestorePoint)
         {
             await CreateRestorePointAsync($"Trước khi gỡ KB{digits}", cancellationToken).ConfigureAwait(false);
         }
 
-        // 2. Execute Removal (DISM first, fallback to WUSA without /quiet)
+        // 3. Tiến hành gỡ bỏ đa tầng:
         ProcessResult? result = null;
 
+        // TẦNG 1: DISM với tên gói chính xác từ CBS Registry hoặc danh sách DISM
         if (OperatingSystem.IsWindows())
         {
-            // 2.1 Attempt silent DISM package removal first (Avoids Exit Code 87 on Windows 10/11)
             try
             {
-                _logService.LogInfo($"Đang kiểm tra gói hệ thống DISM tương ứng với KB{digits}...");
-                var dismPackages = await GetDismPackagesAsync(cancellationToken).ConfigureAwait(false);
-                var matchingPkg = dismPackages.FirstOrDefault(p =>
-                    p.PackageName.Contains(digits, StringComparison.OrdinalIgnoreCase));
+                var (cbsPackageName, _) = FindCbsPackageByKb(digits);
+                string? targetPackage = cbsPackageName;
 
-                if (matchingPkg != null)
+                if (string.IsNullOrWhiteSpace(targetPackage))
                 {
-                    _logService.LogInfo($"Tìm thấy gói DISM tương ứng: {matchingPkg.PackageName}. Đang tiến hành gỡ bỏ tự động...");
-                    result = await RemoveDismPackageAsync(matchingPkg.PackageName, cancellationToken).ConfigureAwait(false);
+                    var dismPackages = await GetDismPackagesAsync(cancellationToken).ConfigureAwait(false);
+                    var matchingPkg = dismPackages.FirstOrDefault(p =>
+                        p.PackageName.Contains(digits, StringComparison.OrdinalIgnoreCase));
+                    targetPackage = matchingPkg?.PackageName;
+                }
+
+                if (!string.IsNullOrWhiteSpace(targetPackage))
+                {
+                    _logService.LogInfo($"Tìm thấy gói hệ thống DISM tương ứng: {targetPackage}. Đang tiến hành gỡ bỏ qua DISM...");
+                    result = await RemoveDismPackageAsync(targetPackage, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                _logService.LogWarning($"Không thể gỡ qua DISM: {ex.Message}. Sẽ chuyển sang WUSA.");
+                _logService.LogWarning($"Không thể gỡ trực tiếp qua DISM: {ex.Message}. Sẽ thử qua PowerShell...");
             }
         }
 
-        // 2.2 Fallback to WUSA if DISM did not execute or did not succeed
+        // TẦNG 2: Gỡ qua PowerShell Remove-WindowsPackage (nếu DISM chưa gỡ thành công)
+        if (OperatingSystem.IsWindows() && (result == null || (!result.Succeeded && result.ExitCode != 3010)))
+        {
+            try
+            {
+                _logService.LogInfo($"Đang thử gỡ bỏ bản cập nhật KB{digits} bằng PowerShell (Remove-WindowsPackage)...");
+                string psCmd = $"$pkg = Get-WindowsPackage -Online | Where-Object {{ $_.PackageName -like '*KB{digits}*' -or $_.PackageName -like '*{digits}*' }} | Select-Object -First 1; if ($pkg) {{ Remove-WindowsPackage -Online -PackageName $pkg.PackageName -NoRestart }} else {{ exit 404 }}";
+
+                var psArgs = new[]
+                {
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command", psCmd
+                };
+
+                var psResult = await _processRunner.RunAsync("powershell.exe", psArgs, cancellationToken).ConfigureAwait(false);
+                if (psResult.Succeeded || psResult.ExitCode == 3010)
+                {
+                    result = psResult;
+                }
+            }
+            catch { }
+        }
+
+        // TẦNG 3: Fallback qua WUSA (hộp thoại chuẩn Windows)
         if (result == null || (!result.Succeeded && result.ExitCode != 3010))
         {
-            _logService.LogInfo($"Đang thực thi lệnh: wusa.exe /uninstall /kb:{digits} /norestart...");
-            // Lưu ý: Trên Windows 10 (1809+) và Windows 11, Microsoft đã loại bỏ tham số /quiet cho /uninstall.
-            // Truyền /quiet sẽ gây ra lỗi Exit code 87 (ERROR_INVALID_PARAMETER).
-            // Thực thi không kèm /quiet sẽ mở hộp thoại xác nhận chuẩn của Windows để gỡ thành công.
+            _logService.LogInfo($"Đang mở hộp thoại gỡ cài đặt của Windows: wusa.exe /uninstall /kb:{digits}...");
             var args = new[]
             {
                 "/uninstall",
-                $"/kb:{digits}",
-                "/norestart"
+                $"/kb:{digits}"
             };
 
             result = await _processRunner.RunAsync("wusa.exe", args, cancellationToken).ConfigureAwait(false);
@@ -149,10 +198,11 @@ public partial class HotfixService : IHotfixService
         {
             string errorExplanation = ExplainWusaErrorCode(result.ExitCode);
             _logService.LogError($"Gỡ bỏ KB{digits} thất bại (ExitCode {result.ExitCode}): {errorExplanation}");
+            _logService.LogInfo("💡 Mẹo: Bạn có thể bấm nút '⚙ Mở Gỡ cài đặt của Windows' ở thanh công cụ phía trên để xem các bản vá được phép gỡ qua giao diện hệ thống.");
             return result;
         }
 
-        // 3. Block reinstall if requested
+        // 4. Block reinstall if requested
         if (blockReinstall)
         {
             _logService.LogInfo($"Đang tiến hành chặn Windows tự cài đặt lại KB{digits}...");
@@ -248,6 +298,65 @@ public partial class HotfixService : IHotfixService
         return result;
     }
 
+    public static (string? packageName, int currentState) FindCbsPackageByKb(string digits)
+    {
+        if (!OperatingSystem.IsWindows()) return (null, 0);
+
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages");
+            if (key != null)
+            {
+                var names = key.GetSubKeyNames();
+                // Tìm subkey chứa chuỗi số KB
+                var match = names.FirstOrDefault(n =>
+                    n.Contains(digits, StringComparison.OrdinalIgnoreCase) &&
+                    (n.StartsWith("Package_for_", StringComparison.OrdinalIgnoreCase) || n.Contains("KB", StringComparison.OrdinalIgnoreCase)));
+
+                match ??= names.FirstOrDefault(n => n.Contains(digits, StringComparison.OrdinalIgnoreCase));
+
+                if (match != null)
+                {
+                    using var subKey = key.OpenSubKey(match);
+                    int currentState = 0;
+                    if (subKey?.GetValue("CurrentState") is int stateVal)
+                    {
+                        currentState = stateVal;
+                    }
+                    return (match, currentState);
+                }
+            }
+        }
+        catch { }
+
+        return (null, 0);
+    }
+
+    public async Task<ProcessResult> OpenInstalledUpdatesControlPanelAsync(CancellationToken cancellationToken = default)
+    {
+        _logService.LogInfo("Đang mở cửa sổ quản lý gỡ bản cập nhật của Windows...");
+        if (!OperatingSystem.IsWindows())
+        {
+            return new ProcessResult(1, string.Empty, "Chỉ khả dụng trên Windows");
+        }
+
+        try
+        {
+            // Thử mở Settings Update History trước
+            var res = await _processRunner.RunAsync("cmd.exe", new[] { "/c", "start", "ms-settings:windowsupdate-history" }, cancellationToken).ConfigureAwait(false);
+            if (!res.Succeeded)
+            {
+                // Dự phòng mở Control Panel Installed Updates cổ điển
+                res = await _processRunner.RunAsync("control.exe", new[] { "/name", "Microsoft.ProgramsAndFeatures", "/page", "pageInstalledUpdates" }, cancellationToken).ConfigureAwait(false);
+            }
+            return res;
+        }
+        catch (Exception ex)
+        {
+            return new ProcessResult(1, string.Empty, ex.Message);
+        }
+    }
+
     public static List<DismPackage> ParseDismPackagesTable(string rawOutput)
     {
         var result = new List<DismPackage>();
@@ -273,26 +382,26 @@ public partial class HotfixService : IHotfixService
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (line.StartsWith("The operation completed", StringComparison.OrdinalIgnoreCase)) break;
 
-            if (line.Contains('|'))
-            {
-                var parts = line.Split('|');
-                if (parts.Length >= 2)
-                {
-                    string pkg = parts[0].Trim();
-                    string state = parts.Length > 1 ? parts[1].Trim() : "";
-                    string release = parts.Length > 2 ? parts[2].Trim() : "";
-                    string time = parts.Length > 3 ? parts[3].Trim() : "";
+            string[] parts = line.Contains('|')
+                ? line.Split('|').Select(p => p.Trim()).ToArray()
+                : Regex.Split(line, @"\s{2,}").Select(p => p.Trim()).ToArray();
 
-                    if (!string.IsNullOrWhiteSpace(pkg))
+            if (parts.Length >= 2)
+            {
+                string pkg = parts[0];
+                string state = parts.Length > 1 ? parts[1] : "";
+                string release = parts.Length > 2 ? parts[2] : "";
+                string time = parts.Length > 3 ? parts[3] : "";
+
+                if (!string.IsNullOrWhiteSpace(pkg) && !pkg.StartsWith("Package Identity", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Add(new DismPackage
                     {
-                        result.Add(new DismPackage
-                        {
-                            PackageName = pkg,
-                            State = state,
-                            ReleaseType = release,
-                            InstallTime = time
-                        });
-                    }
+                        PackageName = pkg,
+                        State = state,
+                        ReleaseType = release,
+                        InstallTime = time
+                    });
                 }
             }
         }
@@ -311,10 +420,11 @@ public partial class HotfixService : IHotfixService
     {
         return exitCode switch
         {
-            87 => "Tham số không hợp lệ (Mã lỗi 87 - ERROR_INVALID_PARAMETER). Microsoft đã loại bỏ tùy chọn /quiet khi gỡ cập nhật qua WUSA trên Windows 10/11.",
-            unchecked((int)0x80070057) => "Tham số không hợp lệ (Mã lỗi 87). Microsoft đã loại bỏ tùy chọn /quiet khi gỡ cập nhật qua WUSA trên Windows 10/11.",
+            87 => "Tham số không hợp lệ (Mã lỗi 87 - 0x00000057 / ERROR_INVALID_PARAMETER). Bản cập nhật này thường là bản vá tích lũy cốt lõi (Cumulative Update) hoặc bản vá nền tảng (Servicing Stack) mà Windows đã khóa vĩnh viễn (Permanent) không cho phép gỡ bỏ qua dòng lệnh.",
+            unchecked((int)0x80070057) => "Tham số không hợp lệ (Mã lỗi 87 - 0x00000057 / ERROR_INVALID_PARAMETER). Bản cập nhật này thường là bản vá tích lũy cốt lõi (Cumulative Update) hoặc bản vá nền tảng (Servicing Stack) mà Windows đã khóa vĩnh viễn (Permanent) không cho phép gỡ bỏ qua dòng lệnh.",
             unchecked((int)0x80240017) => "Bản cập nhật này không thể gỡ qua WUSA (thường là bản cập nhật tích lũy bắt buộc Cumulative Update). Bạn có thể thử gỡ gói RollupFix qua mục DISM.",
             unchecked((int)0x800f081f) => "Không tìm thấy nguồn hoặc gói cập nhật trên máy.",
+            unchecked((int)0x800f0825) => "Gói cập nhật này đã được tích hợp vĩnh viễn (Permanent package) và không thể gỡ bỏ.",
             unchecked((int)0x80070005) => "Truy cập bị từ chối (cần quyền Administrator).",
             unchecked((int)0x80240024) => "Bản cập nhật không tồn tại hoặc đã được gỡ trước đó.",
             _ => $"Lỗi Windows Update Standalone Installer: mã lỗi {exitCode} (0x{exitCode:X8})."

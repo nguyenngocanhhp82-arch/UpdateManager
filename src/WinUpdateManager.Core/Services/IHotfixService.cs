@@ -9,4 +9,5 @@ public interface IHotfixService
     Task<IReadOnlyList<DismPackage>> GetDismPackagesAsync(CancellationToken cancellationToken = default);
     Task<ProcessResult> RemoveDismPackageAsync(string packageName, CancellationToken cancellationToken = default);
     Task<bool> CreateRestorePointAsync(string description, CancellationToken cancellationToken = default);
+    Task<ProcessResult> OpenInstalledUpdatesControlPanelAsync(CancellationToken cancellationToken = default);
 }

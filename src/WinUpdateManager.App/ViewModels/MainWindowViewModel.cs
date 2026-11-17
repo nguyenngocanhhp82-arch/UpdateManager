@@ -994,6 +994,19 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task OpenInstalledUpdatesControlPanelAsync()
+    {
+        try
+        {
+            await _hotfixService.OpenInstalledUpdatesControlPanelAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError("Không thể mở cửa sổ Control Panel của Windows: " + ex.Message);
+        }
+    }
+
     // ==========================================
     // TAB 4: ỨNG DỤNG ĐÃ CÀI / ROLLBACK
     // ==========================================
