@@ -173,7 +173,7 @@ public partial class MainWindowViewModel : ObservableObject
         _logService.EntryAdded += OnLogEntryAdded;
         _logService.Cleared += OnLogCleared;
 
-        _logService.LogInfo("Win Update Manager đã khởi động thành công.");
+        _logService.LogInfo("Lilbow Manager Update đã khởi động thành công. Phát triển bởi Lilbow Nguyễn.");
 
         // Initial background initialization
         _ = InitializeAsync();

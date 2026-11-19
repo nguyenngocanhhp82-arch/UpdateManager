@@ -4,9 +4,11 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <InformationalVersion>1.0.0</InformationalVersion>
-    <Authors>LilbowNguyen</Authors>
-    <Company>Lilbow</Company>
-    <Product>Win Update Manager</Product>
+    <Authors>Lilbow Nguyễn</Authors>
+    <Company>Lilbow Nguyễn</Company>
+    <Product>Lilbow Manager Update</Product>
+    <Description>Lilbow Manager Update - Quản trị cập nhật Windows và ứng dụng hệ thống</Description>
+    <Copyright>Copyright © 2024-2026 Lilbow Nguyễn</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

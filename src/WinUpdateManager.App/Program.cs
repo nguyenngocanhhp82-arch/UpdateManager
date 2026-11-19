@@ -39,7 +39,7 @@ public static class Program
         {
             if (isSelfTest)
             {
-                Console.WriteLine("[WinUpdateManager] Chế độ kiểm tra khởi động tự động (--selftest)...");
+                Console.WriteLine("[Lilbow Manager Update] Chế độ kiểm tra khởi động tự động (--selftest)...");
             }
 
             IHost host = Host.CreateDefaultBuilder(args)
@@ -96,7 +96,7 @@ public static class Program
             var app = new App(host.Services);
             return app.Run();
 #else
-            Console.WriteLine("WinUpdateManager.App hiện chỉ hỗ trợ giao diện trên Windows.");
+            Console.WriteLine("Lilbow Manager Update hiện chỉ hỗ trợ giao diện trên Windows.");
             return 0;
 #endif
         }
@@ -264,7 +264,7 @@ public static class Program
 
             File.AppendAllText(logFile, sb.ToString(), Encoding.UTF8);
 
-            Console.Error.WriteLine($"\n[WIN UPDATE MANAGER CRITICAL STARTUP ERROR - {context}]");
+            Console.Error.WriteLine($"\n[LILBOW MANAGER UPDATE CRITICAL STARTUP ERROR - {context}]");
             Console.Error.WriteLine(ex.ToString());
             Console.Error.WriteLine($"Chi tiết đã được lưu tại: {logFile}\n");
 
@@ -298,14 +298,14 @@ public static class Program
 
 #if WINDOWS || NET8_0_WINDOWS || WINDOWS7_0_OR_GREATER
             string message =
-                $"Ứng dụng Win Update Manager gặp sự cố nghiêm trọng khi khởi động và không thể tiếp tục.\n\n" +
+                $"Ứng dụng Lilbow Manager Update gặp sự cố nghiêm trọng khi khởi động và không thể tiếp tục.\n\n" +
                 $"Chi tiết lỗi:\n{ex.Message}\n\n" +
                 $"Tệp nhật ký ghi lỗi chi tiết đã được lưu tại:\n{logFilePath}\n\n" +
                 $"Vui lòng kiểm tra tệp nhật ký trên để khắc phục.";
 
             System.Windows.MessageBox.Show(
                 message,
-                "Win Update Manager - Lỗi khởi động nghiêm trọng",
+                "Lilbow Manager Update - Lỗi khởi động nghiêm trọng",
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
 #endif

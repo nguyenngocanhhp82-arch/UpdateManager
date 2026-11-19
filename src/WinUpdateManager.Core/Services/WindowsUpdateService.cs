@@ -240,7 +240,7 @@ public partial class WindowsUpdateService : IWindowsUpdateService
         _logService.LogWarning("Đang gửi lệnh khởi động lại hệ thống trong 10 giây...");
         if (OperatingSystem.IsWindows())
         {
-            await _processRunner.RunAsync("shutdown.exe", new[] { "/r", "/t", "10", "/c", "Win Update Manager: Khoi dong lai de hoan tat cap nhat." });
+            await _processRunner.RunAsync("shutdown.exe", new[] { "/r", "/t", "10", "/c", "Lilbow Manager Update: Khoi dong lai de hoan tat cap nhat." });
         }
     }
 

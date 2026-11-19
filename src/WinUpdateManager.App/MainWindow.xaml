@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:WinUpdateManager.App.ViewModels"
         mc:Ignorable="d"
-        Title="Win Update Manager"
+        Title="Lilbow Manager Update"
         Icon="Assets/app.ico"
         Height="800"
         Width="1120"
@@ -37,7 +37,12 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Win Update Manager" FontSize="18" FontWeight="Bold" Foreground="#111827" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Lilbow Manager Update" FontSize="18" FontWeight="Bold" Foreground="#111827" />
+                        <Border Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Phát triển bởi: Lilbow Nguyễn" FontSize="11" FontWeight="SemiBold" Foreground="#4F46E5" />
+                        </Border>
+                    </StackPanel>
                     <TextBlock Text="Công cụ quản trị tập trung bản cập nhật Windows và ứng dụng hệ thống" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0" />
                 </StackPanel>
 
@@ -988,6 +993,27 @@
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- SECTION 4: THÔNG TIN PHẦN MỀM & NGƯỜI PHÁT TRIỂN -->
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,12,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Lilbow Manager Update" FontWeight="Bold" FontSize="14" Foreground="#111827" />
+                                            <TextBlock Text="Công cụ quản trị chuyên sâu cập nhật Windows và tự động hóa phần mềm hệ thống" FontSize="12" Foreground="#4B5563" Margin="0,4,0,2" />
+                                            <TextBlock Text="Phiên bản: 1.0.0 (Self-Contained .NET 8)" FontSize="11" Foreground="#6B7280" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="8" Padding="14,8" VerticalAlignment="Center">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="Người phát triển" FontSize="11" Foreground="#6366F1" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                                                <TextBlock Text="Lilbow Nguyễn" FontSize="13" Foreground="#4338CA" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -1062,16 +1088,23 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <!-- Status Text -->
                 <TextBlock Grid.Column="0" Text="{Binding StatusText}" FontSize="12" Foreground="#4B5563" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
+                <!-- Developer Info -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                    <TextBlock Text="Lilbow Manager Update • Tác giả: " FontSize="11" Foreground="#6B7280" />
+                    <TextBlock Text="Lilbow Nguyễn" FontSize="11" FontWeight="SemiBold" Foreground="#374151" />
+                </StackPanel>
+
                 <!-- Indeterminate Progress when Busy -->
-                <ProgressBar Grid.Column="1" IsIndeterminate="True" Width="120" Height="14" Margin="12,0" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" VerticalAlignment="Center" />
+                <ProgressBar Grid.Column="2" IsIndeterminate="True" Width="120" Height="14" Margin="12,0" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" VerticalAlignment="Center" />
 
                 <!-- Cancel Button when Busy -->
-                <Button Grid.Column="2" Content="Hủy tác vụ" Style="{StaticResource DangerButton}" Command="{Binding CancelProcessCommand}" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" VerticalAlignment="Center" />
+                <Button Grid.Column="3" Content="Hủy tác vụ" Style="{StaticResource DangerButton}" Command="{Binding CancelProcessCommand}" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>

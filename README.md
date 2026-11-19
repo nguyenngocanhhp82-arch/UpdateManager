@@ -1,6 +1,6 @@
-# Win Update Manager
+# Lilbow Manager Update
 
-**Win Update Manager** là công cụ quản trị tập trung bản cập nhật Windows và ứng dụng hệ thống, được thiết kế chuyên biệt cho kỹ thuật viên IT quản lý máy tính văn phòng. Ứng dụng được đóng gói thành **1 file `.exe` duy nhất**, tự chứa toàn bộ runtime .NET 8 (Self-Contained Single-File), chạy trực tiếp trên Windows 10 và Windows 11 sạch không cần cài đặt thêm bất kỳ phần mềm hay thư viện phụ trợ nào.
+**Lilbow Manager Update** (trước đây là Win Update Manager) là công cụ quản trị tập trung bản cập nhật Windows và ứng dụng hệ thống, được phát triển bởi tác giả **Lilbow Nguyễn**. Ứng dụng được thiết kế chuyên biệt cho kỹ thuật viên IT quản lý máy tính văn phòng, được đóng gói thành **1 file `.exe` duy nhất**, tự chứa toàn bộ runtime .NET 8 (Self-Contained Single-File), chạy trực tiếp trên Windows 10 và Windows 11 sạch không cần cài đặt thêm bất kỳ phần mềm hay thư viện phụ trợ nào.
 
 ---
 
@@ -179,5 +179,7 @@ File thực thi cuối cùng sẽ nằm tại `publish/WinUpdateManager.App.exe`
 
 ---
 
-## 🔒 Bản Quyền & Giấy Phép
-Dự án được xây dựng phục vụ nhu cầu quản trị máy trạm nội bộ. Mã nguồn mở theo giấy phép MIT.
+## 🔒 Bản Quyền & Người Phát Triển
+- **Ứng dụng:** Lilbow Manager Update
+- **Tác giả / Người phát triển:** **Lilbow Nguyễn**
+- **Giấy phép:** Mã nguồn mở theo giấy phép MIT. Phục vụ nhu cầu quản trị máy trạm hệ thống và tự động hóa IT chuyên nghiệp.
